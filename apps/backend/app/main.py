@@ -3,7 +3,7 @@ import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator
-from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import Settings, get_settings
 from app.crypto import Crypto
@@ -15,7 +15,20 @@ from app.db.repos import parking as parking_repo
 from app.db.repos import screens as screens_repo
 from app.db.repos import storage as storage_repo
 from app.db.repos import sync_log as sync_log_repo
-from app.models import EmergencyState, EmergencyUpdate, LobbyOverview, ScreenInfo, SyncStatus
+from app.db.repos import templates as templates_repo
+from app.dashboard import DashboardConfig
+from app.dashboard_builder import build_dashboard_config
+from app.models import (
+    EmergencyState,
+    EmergencyUpdate,
+    LobbyOverview,
+    ScreenInfo,
+    SyncStatus,
+    TemplateAssign,
+    TemplateCreate,
+    TemplateInfo,
+    TemplateUpdate,
+)
 from app.scheduler import run_scheduler
 from app.services import EmergencyStore, build_overview_from_cache
 from app.ws.manager import ConnectionManager
@@ -55,6 +68,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.warning("Could not warm cache from DB: %s", exc)
 
+    try:
+        active = await emergency_log_repo.get_active(Session)
+        if active is not None:
+            emergency_store.activate(
+                EmergencyState(
+                    active=True,
+                    title="Внимание жильцам",
+                    message=active.emergency_text,
+                    tablo_ids=active.tablo_ids or [],
+                    priority=active.priority,
+                    log_id=active.id,
+                    auto_reset_at=active.auto_reset_at,
+                )
+            )
+            logger.info("Emergency state restored from DB (log_id=%d)", active.id)
+    except Exception as exc:
+        logger.warning("Could not restore emergency state: %s", exc)
+
     scheduler_task = asyncio.create_task(
         run_scheduler(Session, settings, ws_manager, cache, crypto, emergency_store)
     )
@@ -86,6 +117,17 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+def require_admin(
+    request: Request,
+    x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
+) -> None:
+    expected = request.app.state.settings.admin_token
+    if not expected:
+        raise HTTPException(status_code=503, detail="Admin token is not configured on the server")
+    if x_admin_token != expected:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -107,6 +149,16 @@ async def websocket_lobby(
     overview = build_overview_from_cache(cache)
     if overview:
         await ws_manager.send_to(tablo_id, {"type": "overview", "data": overview.model_dump()})
+
+    try:
+        dashboard = await build_dashboard_config(Session, cache, tablo_id)
+        await ws_manager.send_to(
+            tablo_id,
+            {"type": "dashboard", "data": dashboard.model_dump(mode="json", by_alias=True)},
+        )
+    except Exception as exc:
+        logger.warning("Could not build dashboard for %s: %s", tablo_id, exc)
+
     await ws_manager.send_to(tablo_id, {"type": "emergency", "data": emergency_store.get().model_dump()})
 
     try:
@@ -125,12 +177,26 @@ async def lobby_overview(request: Request) -> LobbyOverview:
     return overview
 
 
+@app.get(
+    "/api/dashboard/config",
+    response_model=DashboardConfig,
+    response_model_by_alias=True,
+)
+async def dashboard_config(
+    request: Request,
+    tablo_id: str = Query(default="display"),
+) -> DashboardConfig:
+    Session = request.app.state.Session
+    cache = request.app.state.cache
+    return await build_dashboard_config(Session, cache, tablo_id)
+
+
 @app.get("/api/emergency/state", response_model=EmergencyState)
 async def emergency_state(request: Request) -> EmergencyState:
     return request.app.state.emergency_store.get()
 
 
-@app.post("/api/emergency/activate", response_model=EmergencyState)
+@app.post("/api/emergency/activate", response_model=EmergencyState, dependencies=[Depends(require_admin)])
 async def activate_emergency(update: EmergencyUpdate, request: Request) -> EmergencyState:
     emergency_store: EmergencyStore = request.app.state.emergency_store
     ws_manager: ConnectionManager = request.app.state.ws_manager
@@ -170,7 +236,7 @@ async def activate_emergency(update: EmergencyUpdate, request: Request) -> Emerg
     return state
 
 
-@app.post("/api/emergency/deactivate", response_model=EmergencyState)
+@app.post("/api/emergency/deactivate", response_model=EmergencyState, dependencies=[Depends(require_admin)])
 async def deactivate_emergency(request: Request) -> EmergencyState:
     emergency_store: EmergencyStore = request.app.state.emergency_store
     ws_manager: ConnectionManager = request.app.state.ws_manager
@@ -193,3 +259,107 @@ async def list_screens(request: Request) -> list[ScreenInfo]:
 @app.get("/api/sync/status", response_model=list[SyncStatus])
 async def sync_status(request: Request) -> list[SyncStatus]:
     return await sync_log_repo.get_latest_per_source(request.app.state.Session)
+
+
+def _template_to_info(tpl) -> TemplateInfo:
+    return TemplateInfo(
+        id=tpl.id,
+        name=tpl.name,
+        preview_url=tpl.preview_url,
+        config_json=tpl.config_json,
+        created_at=tpl.created_at,
+        updated_at=tpl.updated_at,
+    )
+
+
+@app.get("/api/templates", response_model=list[TemplateInfo])
+async def list_templates(request: Request) -> list[TemplateInfo]:
+    tpls = await templates_repo.list_all(request.app.state.Session)
+    return [_template_to_info(t) for t in tpls]
+
+
+@app.get("/api/templates/{template_id}", response_model=TemplateInfo)
+async def get_template(template_id: int, request: Request) -> TemplateInfo:
+    tpl = await templates_repo.get(request.app.state.Session, template_id)
+    if tpl is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return _template_to_info(tpl)
+
+
+@app.post(
+    "/api/templates",
+    response_model=TemplateInfo,
+    status_code=201,
+    dependencies=[Depends(require_admin)],
+)
+async def create_template(payload: TemplateCreate, request: Request) -> TemplateInfo:
+    tpl = await templates_repo.create(
+        request.app.state.Session,
+        name=payload.name,
+        config_json=payload.config_json,
+        preview_url=payload.preview_url,
+    )
+    return _template_to_info(tpl)
+
+
+@app.patch(
+    "/api/templates/{template_id}",
+    response_model=TemplateInfo,
+    dependencies=[Depends(require_admin)],
+)
+async def update_template(
+    template_id: int, payload: TemplateUpdate, request: Request
+) -> TemplateInfo:
+    tpl = await templates_repo.update(
+        request.app.state.Session,
+        template_id,
+        name=payload.name,
+        config_json=payload.config_json,
+        preview_url=payload.preview_url,
+    )
+    if tpl is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return _template_to_info(tpl)
+
+
+@app.delete(
+    "/api/templates/{template_id}",
+    status_code=204,
+    dependencies=[Depends(require_admin)],
+)
+async def delete_template(template_id: int, request: Request) -> None:
+    ok = await templates_repo.delete_by_id(request.app.state.Session, template_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+
+@app.post(
+    "/api/templates/assign",
+    status_code=204,
+    dependencies=[Depends(require_admin)],
+)
+async def assign_template(payload: TemplateAssign, request: Request) -> None:
+    Session = request.app.state.Session
+    if (await templates_repo.get(Session, payload.template_id)) is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await templates_repo.assign_to_screen(Session, payload.tablo_id, payload.template_id)
+    # Сразу пушнуть новый дашборд на этот экран, если он подключён.
+    ws_manager: ConnectionManager = request.app.state.ws_manager
+    cache = request.app.state.cache
+    try:
+        cfg = await build_dashboard_config(Session, cache, payload.tablo_id)
+        await ws_manager.send_to(
+            payload.tablo_id,
+            {"type": "dashboard", "data": cfg.model_dump(mode="json", by_alias=True)},
+        )
+    except Exception as exc:
+        logger.warning("Could not push dashboard after assign: %s", exc)
+
+
+@app.delete(
+    "/api/templates/assign/{tablo_id}",
+    status_code=204,
+    dependencies=[Depends(require_admin)],
+)
+async def unassign_template(tablo_id: str, request: Request) -> None:
+    await templates_repo.unassign_screen(request.app.state.Session, tablo_id)

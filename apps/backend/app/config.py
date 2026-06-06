@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     ujin_token: str = "ust-0000000-00000000000000000000000000000001"
     database_url: str = "postgresql://smartlobby:smartlobby@localhost:5432/smartlobby"
     encryption_key: str = ""
+    admin_token: str = ""
+    demo_mode: bool = True
+    ujin_max_retries: int = 2
+    ujin_retry_backoff: float = 0.5
     backend_cors_origins: str = Field(default="http://localhost:5173,http://127.0.0.1:5173")
     poll_interval_fast: int = 300
     poll_interval_medium: int = 1800

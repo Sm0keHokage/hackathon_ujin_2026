@@ -53,3 +53,14 @@ async def get_active_log_id(Session: SessionFactory) -> int | None:
             .limit(1)
         )
         return result.scalar_one_or_none()
+
+
+async def get_active(Session: SessionFactory) -> EmergencyLog | None:
+    async with Session() as session:
+        result = await session.execute(
+            select(EmergencyLog)
+            .where(EmergencyLog.deactivated_at.is_(None))
+            .order_by(EmergencyLog.activated_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()

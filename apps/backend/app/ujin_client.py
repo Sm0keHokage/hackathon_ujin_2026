@@ -1,9 +1,28 @@
+import asyncio
+import logging
 from html.parser import HTMLParser
 from typing import Any
 import httpx
 from app.config import Settings
 from app.models import BuildingSummary, NewsSummary, ResourceSummary
 
+logger = logging.getLogger(__name__)
+
+
+class UjinError(Exception):
+    pass
+
+class UjinAuthError(UjinError):
+    pass
+
+class UjinNotFoundError(UjinError):
+    pass
+
+class UjinTimeoutError(UjinError):
+    pass
+
+class UjinUpstreamError(UjinError):
+    pass
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -31,23 +50,55 @@ class UjinClient:
         self._base_url = settings.ujin_api_base_url.rstrip("/")
         self._referer = settings.ujin_referer
         self._timeout = settings.ujin_request_timeout
+        self._max_retries = settings.ujin_max_retries
+        self._backoff = settings.ujin_retry_backoff
 
     async def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
-        async with httpx.AsyncClient(
-            base_url=self._base_url,
-            timeout=self._timeout,
-            headers={"Referer": self._referer},
-        ) as client:
-            response = await client.get(path, params=params)
-            response.raise_for_status()
+        attempt = 0
+        last_exc: Exception | None = None
+        while attempt <= self._max_retries:
+            try:
+                async with httpx.AsyncClient(
+                    base_url=self._base_url,
+                    timeout=self._timeout,
+                    headers={"Referer": self._referer},
+                ) as client:
+                    response = await client.get(path, params=params)
+                return self._parse(path, response)
+            except (httpx.TimeoutException, UjinUpstreamError) as exc:
+                last_exc = exc
+                if attempt == self._max_retries:
+                    break
+                delay = self._backoff * (2 ** attempt)
+                logger.warning("Ujin %s failed (%s) — retry in %.1fs", path, exc, delay)
+                await asyncio.sleep(delay)
+                attempt += 1
+        if isinstance(last_exc, httpx.TimeoutException):
+            raise UjinTimeoutError(f"Timeout calling {path}") from last_exc
+        if last_exc is not None:
+            raise last_exc
+        raise UjinUpstreamError(f"Unknown failure calling {path}")
+
+    def _parse(self, path: str, response: httpx.Response) -> dict[str, Any]:
+        if response.status_code == 401:
+            raise UjinAuthError(f"401 on {path}: token invalid or expired")
+        if response.status_code >= 500:
+            raise UjinUpstreamError(f"{response.status_code} on {path}")
+        try:
             payload = response.json()
-            if payload.get("error"):
-                raise httpx.HTTPStatusError(
-                    payload.get("message", "Ujin API error"),
-                    request=response.request,
-                    response=response,
-                )
-            return payload
+        except Exception as exc:
+            raise UjinUpstreamError(f"Non-JSON response from {path}") from exc
+
+        if not isinstance(payload, dict):
+            raise UjinUpstreamError(f"Unexpected payload shape from {path}")
+
+        if payload.get("error"):
+            msg = (payload.get("message") or "").strip()
+            if "could not be found" in msg.lower() or response.status_code == 404:
+                raise UjinNotFoundError(f"{path}: {msg or 'route not found'}")
+            raise UjinUpstreamError(f"{path}: {msg or 'upstream business error'}")
+
+        return payload
 
     async def complexes(self, token: str) -> list[dict[str, Any]]:
         payload = await self._get("/api/v1/complex/list", {"token": token})
@@ -60,6 +111,13 @@ class UjinClient:
         )
         items = payload.get("data", {}).get("buildings", [])
         return [self._building_summary(item) for item in items]
+
+    async def buildings_raw(self, token: str) -> list[dict[str, Any]]:
+        payload = await self._get(
+            "/api/v1/buildings/get-list-crm",
+            {"token": token, "per_page": 1000, "page": 1},
+        )
+        return payload.get("data", {}).get("buildings", [])
 
     async def parking(self, token: str) -> dict[int, ResourceSummary]:
         payload = await self._get("/api/v1/parking/list", {"token": token})

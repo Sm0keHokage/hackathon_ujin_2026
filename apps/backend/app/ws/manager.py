@@ -11,6 +11,13 @@ class ConnectionManager:
 
     async def connect(self, tablo_id: str, websocket: WebSocket) -> None:
         await websocket.accept()
+        old = self._connections.get(tablo_id)
+        if old is not None:
+            try:
+                await old.close(code=1012, reason="Replaced by new connection")
+            except Exception:
+                pass
+            logger.info("Replacing stale connection for %s", tablo_id)
         self._connections[tablo_id] = websocket
         logger.info("Screen connected: %s (total: %d)", tablo_id, len(self._connections))
 

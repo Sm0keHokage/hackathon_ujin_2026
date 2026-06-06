@@ -88,3 +88,29 @@ class SyncStatus(BaseModel):
 class WsMessage(BaseModel):
     type: str
     data: dict | None = None
+
+
+class TemplateInfo(BaseModel):
+    id: int
+    name: str
+    preview_url: str | None = None
+    config_json: dict
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class TemplateCreate(BaseModel):
+    name: str
+    config_json: dict
+    preview_url: str | None = None
+
+
+class TemplateUpdate(BaseModel):
+    name: str | None = None
+    config_json: dict | None = None
+    preview_url: str | None = None
+
+
+class TemplateAssign(BaseModel):
+    tablo_id: str
+    template_id: int
