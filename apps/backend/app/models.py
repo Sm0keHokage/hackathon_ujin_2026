@@ -76,6 +76,9 @@ class ScreenInfo(BaseModel):
     group_name: str | None = None
     is_online: bool = False
     last_seen_at: str | None = None
+    assigned_template_id: int | None = None
+    assigned_template_name: str | None = None
+    assigned_at: datetime | None = None
 
 
 class SyncStatus(BaseModel):
