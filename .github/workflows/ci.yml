@@ -49,7 +49,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create .env file
         run: |
-          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > .env
           echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
           echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
           echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
@@ -65,6 +65,7 @@ jobs:
           echo "EMERGENCY_AUTO_RESET_SEC=${{ secrets.EMERGENCY_AUTO_RESET_SEC }}" >> .env
           echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> .env
           echo "OPENWEATHER_CITY=${{ secrets.OPENWEATHER_CITY }}" >> .env
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" >> .env
       - name: Deploy
         run: |
           docker compose up -d --build
