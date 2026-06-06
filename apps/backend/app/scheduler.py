@@ -13,7 +13,10 @@ from app.db.repos import news as news_repo
 from app.db.repos import parking as parking_repo
 from app.db.repos import storage as storage_repo
 from app.db.repos import sync_log as sync_log_repo
+from app.db.repos import weather as weather_repo
+from app.db.repos import static_content as static_content_repo
 from app.db.session import SessionFactory
+from app.weather_client import WeatherClient
 from app.demo_data import (
     extract_from_statistics,
     parking_for_buildings,
@@ -189,6 +192,43 @@ async def sync_daily(
         logger.error("Daily sync error: %s", exc)
 
 
+async def sync_weather(
+    Session: SessionFactory,
+    weather_client: WeatherClient,
+    ws_manager: ConnectionManager,
+    cache: dict[str, Any],
+    fallback_address: str,
+) -> None:
+    t0 = time.monotonic()
+    try:
+        address = await static_content_repo.get_value(Session, "weather_location") or fallback_address
+        lat, lon = await weather_client.geocode(address)
+        current, hourly, daily = await asyncio.gather(
+            weather_client.fetch_current(lat, lon),
+            weather_client.fetch_hourly(lat, lon),
+            weather_client.fetch_daily(lat, lon),
+        )
+        await asyncio.gather(
+            weather_repo.upsert(Session, "current", current),
+            weather_repo.upsert(Session, "hourly", hourly),
+            weather_repo.upsert(Session, "daily", daily),
+        )
+        cache["weather_current"] = current
+        cache["weather_hourly"] = hourly
+        cache["weather_daily"] = daily
+        await ws_manager.broadcast_all({
+            "type": "weather",
+            "data": {"current": current, "hourly": hourly, "daily": daily},
+        })
+        ms = int((time.monotonic() - t0) * 1000)
+        await sync_log_repo.insert_log(Session, "weather", "ok", ms)
+        logger.info("Weather sync OK address=%r (%d ms)", address, ms)
+    except Exception as exc:
+        ms = int((time.monotonic() - t0) * 1000)
+        await sync_log_repo.insert_log(Session, "weather", "error", ms, str(exc))
+        logger.error("Weather sync error: %s", exc)
+
+
 async def _loop_emergency_auto_reset(
     Session: SessionFactory,
     emergency_store: EmergencyStore,
@@ -214,6 +254,7 @@ async def run_scheduler(
     cache: dict[str, Any],
     crypto: Crypto,
     emergency_store: EmergencyStore,
+    weather_client: WeatherClient | None = None,
 ) -> None:
     ujin_client = UjinClient(settings)
     token = settings.ujin_token
@@ -239,9 +280,28 @@ async def run_scheduler(
             await asyncio.sleep(settings.poll_interval_daily)
             await sync_daily(Session, ujin_client, ws_manager, cache, token, crypto)
 
-    await asyncio.gather(
+    coroutines = [
         loop_fast(),
         loop_medium(),
         loop_daily(),
         _loop_emergency_auto_reset(Session, emergency_store, ws_manager),
-    )
+    ]
+
+    if weather_client is not None:
+        weather_kwargs = dict(
+            Session=Session,
+            weather_client=weather_client,
+            ws_manager=ws_manager,
+            cache=cache,
+            fallback_address=settings.openweather_address,
+        )
+        await sync_weather(**weather_kwargs)
+
+        async def loop_weather() -> None:
+            while True:
+                await asyncio.sleep(settings.weather_poll_interval)
+                await sync_weather(**weather_kwargs)
+
+        coroutines.append(loop_weather())
+
+    await asyncio.gather(*coroutines)

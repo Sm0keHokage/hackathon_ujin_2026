@@ -2,7 +2,6 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
     ujin_api_base_url: str = "https://api-uae-test.ujin.tech"
@@ -21,12 +20,12 @@ class Settings(BaseSettings):
     poll_interval_daily: int = 86400
     emergency_auto_reset_sec: int = 1800
     openweather_api_key: str = ""
-    openweather_city: str = "Moscow"
+    openweather_address: str = "Москва"
+    weather_poll_interval: int = 1200
 
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.backend_cors_origins.split(",") if o.strip()]
-
 
 @lru_cache
 def get_settings() -> Settings:
