@@ -1,4 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type CSSProperties,
+    type ReactNode
+} from "react";
+
 import {
     AlertTriangle,
     Bell,
@@ -15,6 +24,7 @@ import {
 import type {
     ClockTile,
     DashboardConfig,
+    DashboardGrid,
     DashboardSeverity,
     DashboardStatus,
     DashboardTile,
@@ -29,12 +39,85 @@ interface DashboardScreenProps {
     config: DashboardConfig;
 }
 
+interface ElementSize {
+    width: number;
+    height: number;
+}
+
+interface GridMetrics {
+    chunkSize: number;
+    width: number;
+    height: number;
+}
+
 const severityLabels: Record<DashboardSeverity, string> = {
     info: "Информация",
     success: "Норма",
     warning: "Внимание",
     critical: "Срочно",
 };
+
+function getTileGridPosition(tile: DashboardTile): CSSProperties {
+    return {
+        gridColumn: `${tile.layout.topLeft.x} / ${tile.layout.bottomRight.x + 1}`,
+        gridRow: `${tile.layout.topLeft.y} / ${tile.layout.bottomRight.y + 1}`,
+    };
+}
+
+function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
+    const horizontalGaps = Math.max(0, grid.columns - 1) * grid.gap;
+    const verticalGaps = Math.max(0, grid.rows - 1) * grid.gap;
+    const availableWidth = Math.max(0, size.width - horizontalGaps);
+    const availableHeight = Math.max(0, size.height - verticalGaps);
+    const chunkSize = Math.max(0, Math.min(availableWidth / grid.columns, availableHeight / grid.rows));
+
+    return {
+        chunkSize,
+        width: grid.columns * chunkSize + horizontalGaps,
+        height: grid.rows * chunkSize + verticalGaps,
+    };
+}
+
+function useElementSize() {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const [size, setSize] = useState<ElementSize>({ width: 0, height: 0 });
+
+    useLayoutEffect(() => {
+        const element = ref.current;
+
+        if (!element) {
+            return;
+        }
+
+        const updateSize = () => {
+            const rect = element.getBoundingClientRect();
+            setSize({ width: rect.width, height: rect.height });
+        };
+
+        updateSize();
+
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+
+            if (!entry) {
+                return;
+            }
+
+            setSize({
+                width: entry.contentRect.width,
+                height: entry.contentRect.height,
+            });
+        });
+
+        observer.observe(element);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
+
+    return { ref, size };
+}
 
 const statusLabels: Record<DashboardStatus, string> = {
     normal: "Норма",
@@ -239,10 +322,7 @@ function DashboardTileCard({ tile }: { tile: DashboardTile }) {
     return (
         <article
             className={`dashboard-tile dashboard-tile_${tile.type} ${tile.accent ? `dashboard-tile_${tile.accent}` : ""}`}
-            style={{
-                gridColumn: `${tile.layout.x} / span ${tile.layout.width}`,
-                gridRow: `${tile.layout.y} / span ${tile.layout.height}`,
-            }}
+            style={getTileGridPosition(tile)}
         >
             {renderTile(tile)}
         </article>
@@ -250,6 +330,22 @@ function DashboardTileCard({ tile }: { tile: DashboardTile }) {
 }
 
 export function DashboardScreen({ config }: DashboardScreenProps) {
+    const gridArea = useElementSize();
+    const gridMetrics = useMemo(
+        () => getGridMetrics(config.grid, gridArea.size),
+        [config.grid, gridArea.size],
+    );
+    const gridStyle = useMemo<CSSProperties>(
+        () => ({
+            width: gridMetrics.width,
+            height: gridMetrics.height,
+            gridTemplateColumns: `repeat(${config.grid.columns}, ${gridMetrics.chunkSize}px)`,
+            gridTemplateRows: `repeat(${config.grid.rows}, ${gridMetrics.chunkSize}px)`,
+            gap: config.grid.gap,
+        }),
+        [config.grid, gridMetrics],
+    );
+
     return (
         <main className="dashboard-shell">
             <section className="dashboard-stage" aria-label={config.title}>
@@ -264,17 +360,12 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
                     </div>
                 </header>
 
-                <div
-                    className="dashboard-grid"
-                    style={{
-                        gridTemplateColumns: `repeat(${config.grid.columns}, minmax(0, 1fr))`,
-                        gridTemplateRows: `repeat(${config.grid.rows}, minmax(0, 1fr))`,
-                        gap: config.grid.gap,
-                    }}
-                >
-                    {config.tiles.map((tile) => (
-                        <DashboardTileCard key={tile.id} tile={tile} />
-                    ))}
+                <div className="dashboard-grid-area" ref={gridArea.ref}>
+                    <div className="dashboard-grid" style={gridStyle}>
+                        {config.tiles.map((tile) => (
+                            <DashboardTileCard key={tile.id} tile={tile} />
+                        ))}
+                    </div>
                 </div>
             </section>
         </main>

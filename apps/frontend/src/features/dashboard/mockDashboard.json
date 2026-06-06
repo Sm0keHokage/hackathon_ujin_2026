@@ -4,8 +4,8 @@
     "address": "Г. Пермь, Лучшая улица, -1",
     "updatedAt": "2026-06-06T10:00:00+05:00",
     "grid": {
-        "columns": 12,
-        "rows": 6,
+        "columns": 16,
+        "rows": 9,
         "gap": 16
     },
     "tiles": [
@@ -16,10 +16,14 @@
             "timezone": "Asia/Yekaterinburg",
             "subtitle": "Пермь",
             "layout": {
-                "x": 1,
-                "y": 1,
-                "width": 3,
-                "height": 2
+                "topLeft": {
+                    "x": 1,
+                    "y": 1
+                },
+                "bottomRight": {
+                    "x": 4,
+                    "y": 4
+                }
             }
         },
         {
@@ -30,10 +34,14 @@
             "footer": "круглосуточно, кроме понедельника, вторника, среды, четверга, пятницы, субботы и воскресенья",
             "accent": "info",
             "layout": {
-                "x": 4,
-                "y": 1,
-                "width": 3,
-                "height": 2
+                "topLeft": {
+                    "x": 5,
+                    "y": 1
+                },
+                "bottomRight": {
+                    "x": 8,
+                    "y": 3
+                }
             }
         },
         {
@@ -45,10 +53,14 @@
             "caption": "квартир закрыли начисления",
             "status": "success",
             "layout": {
-                "x": 7,
-                "y": 1,
-                "width": 2,
-                "height": 2
+                "topLeft": {
+                    "x": 9,
+                    "y": 1
+                },
+                "bottomRight": {
+                    "x": 11,
+                    "y": 3
+                }
             }
         },
         {
@@ -60,10 +72,14 @@
             "caption": "жарко, держитесь там",
             "status": "info",
             "layout": {
-                "x": 9,
-                "y": 1,
-                "width": 4,
-                "height": 2
+                "topLeft": {
+                    "x": 12,
+                    "y": 1
+                },
+                "bottomRight": {
+                    "x": 16,
+                    "y": 3
+                }
             }
         },
         {
@@ -87,10 +103,14 @@
                 }
             ],
             "layout": {
-                "x": 1,
-                "y": 3,
-                "width": 5,
-                "height": 3
+                "topLeft": {
+                    "x": 1,
+                    "y": 5
+                },
+                "bottomRight": {
+                    "x": 7,
+                    "y": 9
+                }
             }
         },
         {
@@ -118,10 +138,14 @@
                 }
             ],
             "layout": {
-                "x": 6,
-                "y": 3,
-                "width": 3,
-                "height": 3
+                "topLeft": {
+                    "x": 8,
+                    "y": 4
+                },
+                "bottomRight": {
+                    "x": 11,
+                    "y": 9
+                }
             }
         },
         {
@@ -131,10 +155,14 @@
             "src": "https://yandex.ru/map-widget/v1/?ll=60.597465%2C56.838011&z=14",
             "refreshIntervalSeconds": 600,
             "layout": {
-                "x": 9,
-                "y": 3,
-                "width": 4,
-                "height": 3
+                "topLeft": {
+                    "x": 12,
+                    "y": 4
+                },
+                "bottomRight": {
+                    "x": 16,
+                    "y": 9
+                }
             }
         }
     ]

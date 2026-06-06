@@ -95,8 +95,17 @@ body {
     flex: 0 0 auto;
 }
 
+.dashboard-grid-area {
+    display: grid;
+    min-height: 0;
+    overflow: hidden;
+    place-items: center;
+}
+
 .dashboard-grid {
     display: grid;
+    max-height: 100%;
+    max-width: 100%;
     min-height: 0;
 }
 
@@ -341,15 +350,21 @@ body {
 
 .text-tile__body {
     color: #12191f;
-    font-size: 42px;
+    font-size: clamp(30px, 2.2vw, 42px);
     font-weight: 900;
-    line-height: 1;
-    margin-top: auto;
-    overflow-wrap: anywhere;
+    line-height: 1.05;
+    margin-top: 12px;
+    overflow-wrap: break-word;
 }
 
 .text-tile__footer {
+    display: -webkit-box;
+    font-size: clamp(16px, 1.05vw, 22px);
+    line-height: 1.2;
+    overflow: hidden;
     text-transform: lowercase;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
 }
 
 .iframe-tile__frame {
@@ -389,6 +404,8 @@ body {
     .dashboard-grid {
         grid-template-columns: 1fr !important;
         grid-template-rows: none !important;
+        height: auto !important;
+        width: auto !important;
     }
 
     .dashboard-tile {

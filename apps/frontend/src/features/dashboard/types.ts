@@ -10,11 +10,14 @@ export type DashboardSeverity = "info" | "success" | "warning" | "critical";
 
 export type DashboardStatus = "normal" | "planned" | "attention" | "disabled";
 
-export interface DashboardTileLayout {
+export interface DashboardChunkCoordinate {
     x: number;
     y: number;
-    width: number;
-    height: number;
+}
+
+export interface DashboardTileLayout {
+    topLeft: DashboardChunkCoordinate;
+    bottomRight: DashboardChunkCoordinate;
 }
 
 interface DashboardTileBase {
