@@ -334,7 +334,7 @@ async def create_template(payload: TemplateCreate, request: Request) -> Template
     tpl = await templates_repo.create(
         request.app.state.Session,
         name=payload.name,
-        config_json=payload.config_json,
+        config_json=payload.config_json.model_dump(mode="json", by_alias=True, exclude_none=True),
         preview_url=payload.preview_url,
     )
     return _template_to_info(tpl)
@@ -348,11 +348,15 @@ async def create_template(payload: TemplateCreate, request: Request) -> Template
 async def update_template(
     template_id: int, payload: TemplateUpdate, request: Request
 ) -> TemplateInfo:
+    config_json = None
+    if payload.config_json is not None:
+        config_json = payload.config_json.model_dump(mode="json", by_alias=True, exclude_none=True)
+
     tpl = await templates_repo.update(
         request.app.state.Session,
         template_id,
         name=payload.name,
-        config_json=payload.config_json,
+        config_json=config_json,
         preview_url=payload.preview_url,
     )
     if tpl is None:

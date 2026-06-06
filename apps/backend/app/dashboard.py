@@ -1,5 +1,5 @@
 from typing import Annotated, Literal, Union
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 
@@ -11,6 +11,7 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
+        extra="forbid",
     )
 
 
@@ -22,6 +23,14 @@ class GridPoint(_CamelModel):
 class TileLayout(_CamelModel):
     top_left: GridPoint
     bottom_right: GridPoint
+
+    @model_validator(mode="after")
+    def validate_coordinates(self) -> "TileLayout":
+        if self.bottom_right.x < self.top_left.x:
+            raise ValueError("bottomRight.x cannot be less than topLeft.x")
+        if self.bottom_right.y < self.top_left.y:
+            raise ValueError("bottomRight.y cannot be less than topLeft.y")
+        return self
 
 
 class DashboardGrid(_CamelModel):
@@ -84,7 +93,7 @@ class ServiceStatusContent(TileContent):
 class IframeContent(TileContent):
     type: Literal["iframe"] = "iframe"
     src: str
-    refresh_interval_seconds: int | None = None
+    refresh_interval_seconds: int | None = Field(default=None, ge=1)
 
 
 DashboardTileContent = Annotated[
@@ -153,10 +162,25 @@ class DashboardEmergency(_CamelModel):
 
 
 class DashboardConfig(_CamelModel):
-    id: str
-    title: str
-    address: str
-    updated_at: str
+    id: str | None = None
+    title: str | None = None
+    address: str | None = None
+    updated_at: str | None = None
     grid: DashboardGrid = Field(default_factory=DashboardGrid)
     emergency: DashboardEmergency | None = None
     tiles: list[DashboardTileSlot]
+
+    @model_validator(mode="after")
+    def validate_tiles_within_grid(self) -> "DashboardConfig":
+        for tile in self.tiles:
+            if tile.layout.bottom_right.x > self.grid.columns:
+                raise ValueError(
+                    f"Tile {tile.id} bottomRight.x ({tile.layout.bottom_right.x}) "
+                    f"exceeds grid columns ({self.grid.columns})"
+                )
+            if tile.layout.bottom_right.y > self.grid.rows:
+                raise ValueError(
+                    f"Tile {tile.id} bottomRight.y ({tile.layout.bottom_right.y}) "
+                    f"exceeds grid rows ({self.grid.rows})"
+                )
+        return self

@@ -1,5 +1,6 @@
 from datetime import datetime
 from pydantic import BaseModel, Field
+from app.dashboard import DashboardConfig
 
 
 class Metric(BaseModel):
@@ -147,20 +148,20 @@ class TemplateInfo(BaseModel):
     id: int
     name: str
     preview_url: str | None = None
-    config_json: dict
+    config_json: DashboardConfig
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
 
 class TemplateCreate(BaseModel):
     name: str
-    config_json: dict
+    config_json: DashboardConfig
     preview_url: str | None = None
 
 
 class TemplateUpdate(BaseModel):
     name: str | None = None
-    config_json: dict | None = None
+    config_json: DashboardConfig | None = None
     preview_url: str | None = None
 
 
