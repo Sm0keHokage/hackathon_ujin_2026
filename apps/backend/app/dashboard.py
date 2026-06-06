@@ -8,7 +8,6 @@ ServiceState = Literal["normal", "planned", "attention", "disabled"]
 
 
 class _CamelModel(BaseModel):
-
     model_config = ConfigDict(
         alias_generator=to_camel,
         populate_by_name=True,
@@ -26,25 +25,24 @@ class TileLayout(_CamelModel):
 
 
 class DashboardGrid(_CamelModel):
-    columns: int = Field(ge=1)
-    rows: int = Field(ge=1)
+    columns: int = Field(ge=1, default=9)
+    rows: int = Field(ge=1, default=16)
     gap: int = Field(ge=0, default=16)
 
 
-class _TileBase(_CamelModel):
+class TileContent(_CamelModel):
     id: str
     title: str
-    layout: TileLayout
     accent: Accent | None = None
 
 
-class ClockTile(_TileBase):
+class ClockContent(TileContent):
     type: Literal["clock"] = "clock"
     timezone: str = "Europe/Moscow"
     subtitle: str | None = None
 
 
-class MetricTile(_TileBase):
+class MetricContent(TileContent):
     type: Literal["metric"] = "metric"
     value: str
     unit: str | None = None
@@ -52,7 +50,7 @@ class MetricTile(_TileBase):
     status: Accent | None = None
 
 
-class TextTile(_TileBase):
+class TextContent(TileContent):
     type: Literal["text"] = "text"
     body: str
     footer: str | None = None
@@ -66,7 +64,7 @@ class NoticeItem(_CamelModel):
     severity: Accent | None = None
 
 
-class NoticeListTile(_TileBase):
+class NoticeListContent(TileContent):
     type: Literal["noticeList"] = "noticeList"
     items: list[NoticeItem] = Field(default_factory=list)
 
@@ -78,21 +76,80 @@ class ServiceStatusItem(_CamelModel):
     status: ServiceState = "normal"
 
 
-class ServiceStatusTile(_TileBase):
+class ServiceStatusContent(TileContent):
     type: Literal["serviceStatus"] = "serviceStatus"
     items: list[ServiceStatusItem] = Field(default_factory=list)
 
 
-class IframeTile(_TileBase):
+class IframeContent(TileContent):
     type: Literal["iframe"] = "iframe"
     src: str
     refresh_interval_seconds: int | None = None
 
 
-DashboardTile = Annotated[
-    Union[ClockTile, MetricTile, TextTile, NoticeListTile, ServiceStatusTile, IframeTile],
+DashboardTileContent = Annotated[
+    Union[
+        ClockContent,
+        MetricContent,
+        TextContent,
+        NoticeListContent,
+        ServiceStatusContent,
+        IframeContent,
+    ],
     Field(discriminator="type"),
 ]
+
+
+class RotatingTileGroup(_CamelModel):
+    id: str
+    layout: TileLayout
+    rotation_interval_seconds: int | None = Field(default=None, ge=1)
+    tiles: list[DashboardTileContent]
+
+
+class ClockTile(ClockContent):
+    layout: TileLayout
+
+
+class MetricTile(MetricContent):
+    layout: TileLayout
+
+
+class TextTile(TextContent):
+    layout: TileLayout
+
+
+class NoticeListTile(NoticeListContent):
+    layout: TileLayout
+
+
+class ServiceStatusTile(ServiceStatusContent):
+    layout: TileLayout
+
+
+class IframeTile(IframeContent):
+    layout: TileLayout
+
+
+DashboardTileSlot = Annotated[
+    Union[
+        ClockTile,
+        MetricTile,
+        TextTile,
+        NoticeListTile,
+        ServiceStatusTile,
+        IframeTile,
+        RotatingTileGroup,
+    ],
+    Field(union_mode="smart"),
+]
+
+
+class DashboardEmergency(_CamelModel):
+    active: bool
+    message: str
+    force_two_lines: bool | None = None
+    auto_reset_at: str | None = None
 
 
 class DashboardConfig(_CamelModel):
@@ -100,5 +157,6 @@ class DashboardConfig(_CamelModel):
     title: str
     address: str
     updated_at: str
-    grid: DashboardGrid
-    tiles: list[DashboardTile]
+    grid: DashboardGrid = Field(default_factory=DashboardGrid)
+    emergency: DashboardEmergency | None = None
+    tiles: list[DashboardTileSlot]
