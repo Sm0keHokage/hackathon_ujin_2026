@@ -1,0 +1,141 @@
+{
+    "id": "zhk-severny-kvartal-main",
+    "title": "ЖК Северный квартал",
+    "address": "ул. Академика Парина, 18",
+    "updatedAt": "2026-06-06T10:00:00+05:00",
+    "grid": {
+        "columns": 12,
+        "rows": 6,
+        "gap": 16
+    },
+    "tiles": [
+        {
+            "id": "current-time",
+            "type": "clock",
+            "title": "Сегодня",
+            "timezone": "Asia/Yekaterinburg",
+            "subtitle": "Екатеринбург",
+            "layout": {
+                "x": 1,
+                "y": 1,
+                "width": 3,
+                "height": 2
+            }
+        },
+        {
+            "id": "service-phone",
+            "type": "text",
+            "title": "Диспетчерская",
+            "body": "+7 343 222-18-18",
+            "footer": "круглосуточно",
+            "accent": "info",
+            "layout": {
+                "x": 4,
+                "y": 1,
+                "width": 3,
+                "height": 2
+            }
+        },
+        {
+            "id": "payments",
+            "type": "metric",
+            "title": "Оплачено за май",
+            "value": "92",
+            "unit": "%",
+            "caption": "квартир закрыли начисления",
+            "status": "success",
+            "layout": {
+                "x": 7,
+                "y": 1,
+                "width": 2,
+                "height": 2
+            }
+        },
+        {
+            "id": "weather",
+            "type": "metric",
+            "title": "На улице",
+            "value": "+18",
+            "unit": "°C",
+            "caption": "переменная облачность",
+            "status": "info",
+            "layout": {
+                "x": 9,
+                "y": 1,
+                "width": 4,
+                "height": 2
+            }
+        },
+        {
+            "id": "notices",
+            "type": "noticeList",
+            "title": "Объявления",
+            "items": [
+                {
+                    "id": "notice-1",
+                    "title": "Промывка системы отопления",
+                    "text": "Работы пройдут 8 июня с 10:00 до 15:00.",
+                    "date": "2026-06-08",
+                    "severity": "warning"
+                },
+                {
+                    "id": "notice-2",
+                    "title": "Проверка домофонов",
+                    "text": "Просим обеспечить доступ в технические помещения.",
+                    "date": "2026-06-09",
+                    "severity": "info"
+                }
+            ],
+            "layout": {
+                "x": 1,
+                "y": 3,
+                "width": 5,
+                "height": 3
+            }
+        },
+        {
+            "id": "services",
+            "type": "serviceStatus",
+            "title": "Инженерные системы",
+            "items": [
+                {
+                    "id": "hot-water",
+                    "label": "Горячая вода",
+                    "value": "штатно",
+                    "status": "normal"
+                },
+                {
+                    "id": "elevators",
+                    "label": "Лифты",
+                    "value": "1 из 4 на обслуживании",
+                    "status": "attention"
+                },
+                {
+                    "id": "parking",
+                    "label": "Паркинг",
+                    "value": "доступ открыт",
+                    "status": "normal"
+                }
+            ],
+            "layout": {
+                "x": 6,
+                "y": 3,
+                "width": 3,
+                "height": 3
+            }
+        },
+        {
+            "id": "map",
+            "type": "iframe",
+            "title": "Транспорт рядом",
+            "src": "https://yandex.ru/map-widget/v1/?ll=60.597465%2C56.838011&z=14",
+            "refreshIntervalSeconds": 600,
+            "layout": {
+                "x": 9,
+                "y": 3,
+                "width": 4,
+                "height": 3
+            }
+        }
+    ]
+}
