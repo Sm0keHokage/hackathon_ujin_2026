@@ -16,6 +16,8 @@ from app.db.repos import screens as screens_repo
 from app.db.repos import storage as storage_repo
 from app.db.repos import sync_log as sync_log_repo
 from app.db.repos import templates as templates_repo
+from app.db.repos import weather as weather_repo
+from app.db.repos import static_content as static_content_repo
 from app.dashboard import DashboardConfig
 from app.dashboard_builder import build_dashboard_config
 from app.models import (
@@ -28,9 +30,14 @@ from app.models import (
     TemplateCreate,
     TemplateInfo,
     TemplateUpdate,
+    WeatherAll,
+    WeatherCurrent,
+    WeatherDaily,
+    WeatherHourly,
 )
 from app.scheduler import run_scheduler
 from app.services import EmergencyStore, build_overview_from_cache
+from app.weather_client import WeatherClient
 from app.ws.manager import ConnectionManager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -86,8 +93,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     except Exception as exc:
         logger.warning("Could not restore emergency state: %s", exc)
 
+    weather_client: WeatherClient | None = None
+    if settings.openweather_api_key:
+        weather_client = WeatherClient(settings.openweather_api_key)
+        try:
+            w = await weather_repo.get_all_latest(Session)
+            if w.get("current"):
+                cache["weather_current"] = w["current"]
+            if w.get("hourly"):
+                cache["weather_hourly"] = w["hourly"]
+            if w.get("daily"):
+                cache["weather_daily"] = w["daily"]
+            logger.info("Cache warm from DB: weather types=%s", list(w.keys()))
+        except Exception as exc:
+            logger.warning("Could not warm weather cache from DB: %s", exc)
+    else:
+        logger.warning("OPENWEATHER_API_KEY not set — weather sync disabled")
+
+    app.state.weather_client = weather_client
+
     scheduler_task = asyncio.create_task(
-        run_scheduler(Session, settings, ws_manager, cache, crypto, emergency_store)
+        run_scheduler(Session, settings, ws_manager, cache, crypto, emergency_store, weather_client)
     )
 
     yield
@@ -97,6 +123,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await scheduler_task
     except asyncio.CancelledError:
         pass
+    if weather_client is not None:
+        await weather_client.close()
     await engine.dispose()
     logger.info("Shutdown complete")
 
@@ -160,6 +188,16 @@ async def websocket_lobby(
         logger.warning("Could not build dashboard for %s: %s", tablo_id, exc)
 
     await ws_manager.send_to(tablo_id, {"type": "emergency", "data": emergency_store.get().model_dump()})
+
+    weather_payload: dict = {}
+    if cache.get("weather_current"):
+        weather_payload["current"] = cache["weather_current"]
+    if cache.get("weather_hourly"):
+        weather_payload["hourly"] = cache["weather_hourly"]
+    if cache.get("weather_daily"):
+        weather_payload["daily"] = cache["weather_daily"]
+    if weather_payload:
+        await ws_manager.send_to(tablo_id, {"type": "weather", "data": weather_payload})
 
     try:
         while True:
@@ -363,3 +401,60 @@ async def assign_template(payload: TemplateAssign, request: Request) -> None:
 )
 async def unassign_template(tablo_id: str, request: Request) -> None:
     await templates_repo.unassign_screen(request.app.state.Session, tablo_id)
+
+
+@app.get("/api/weather", response_model=WeatherAll)
+async def weather_all(request: Request) -> WeatherAll:
+    cache = request.app.state.cache
+    return WeatherAll(
+        current=WeatherCurrent(**cache["weather_current"]) if cache.get("weather_current") else None,
+        hourly=WeatherHourly(**cache["weather_hourly"]) if cache.get("weather_hourly") else None,
+        daily=WeatherDaily(**cache["weather_daily"]) if cache.get("weather_daily") else None,
+    )
+
+
+@app.get("/api/weather/current", response_model=WeatherCurrent)
+async def weather_current(request: Request) -> WeatherCurrent:
+    data = request.app.state.cache.get("weather_current")
+    if data is None:
+        raise HTTPException(status_code=503, detail="Weather data not yet loaded.")
+    return WeatherCurrent(**data)
+
+
+@app.get("/api/weather/hourly", response_model=WeatherHourly)
+async def weather_hourly(request: Request) -> WeatherHourly:
+    data = request.app.state.cache.get("weather_hourly")
+    if data is None:
+        raise HTTPException(status_code=503, detail="Weather data not yet loaded.")
+    return WeatherHourly(**data)
+
+
+@app.get("/api/weather/daily", response_model=WeatherDaily)
+async def weather_daily(request: Request) -> WeatherDaily:
+    data = request.app.state.cache.get("weather_daily")
+    if data is None:
+        raise HTTPException(status_code=503, detail="Weather data not yet loaded.")
+    return WeatherDaily(**data)
+
+
+@app.get("/api/weather/location")
+async def get_weather_location(request: Request) -> dict:
+    Session = request.app.state.Session
+    settings: Settings = request.app.state.settings
+    address = await static_content_repo.get_value(Session, "weather_location") or settings.openweather_address
+    return {"address": address}
+
+
+@app.put("/api/weather/location")
+async def set_weather_location(
+    request: Request,
+    address: str = Body(..., embed=True),
+) -> dict:
+    Session = request.app.state.Session
+    weather_client: WeatherClient | None = request.app.state.weather_client
+    if not address.strip():
+        raise HTTPException(status_code=422, detail="address cannot be empty")
+    await static_content_repo.set_value(Session, "weather_location", address.strip())
+    if weather_client is not None:
+        weather_client._geocache.clear()
+    return {"address": address.strip()}

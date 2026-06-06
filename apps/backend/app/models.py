@@ -90,6 +90,59 @@ class WsMessage(BaseModel):
     data: dict | None = None
 
 
+class WeatherCurrent(BaseModel):
+    temp: float
+    feels_like: float
+    temp_min: float
+    temp_max: float
+    humidity: int
+    pressure: int
+    wind_speed: float
+    description: str
+    icon: str
+    icon_url: str
+    location: str
+    dt: str
+
+
+class WeatherHourlyItem(BaseModel):
+    dt: str
+    hour: str
+    temp: float
+    feels_like: float
+    humidity: int
+    wind_speed: float
+    description: str
+    icon: str
+    icon_url: str
+    pop: int = 0
+
+
+class WeatherHourly(BaseModel):
+    items: list[WeatherHourlyItem]
+
+
+class WeatherDailyItem(BaseModel):
+    date: str
+    day_name: str
+    temp_min: float
+    temp_max: float
+    description: str
+    icon: str
+    icon_url: str
+    pop_max: int = 0
+
+
+class WeatherDaily(BaseModel):
+    items: list[WeatherDailyItem]
+
+
+class WeatherAll(BaseModel):
+    current: WeatherCurrent | None = None
+    hourly: WeatherHourly | None = None
+    daily: WeatherDaily | None = None
+
+
 class TemplateInfo(BaseModel):
     id: int
     name: str
