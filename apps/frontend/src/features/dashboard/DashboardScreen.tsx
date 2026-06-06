@@ -49,12 +49,16 @@ interface ElementSize {
 
 interface GridMetrics {
     chunkSize: number;
+    gap: number;
+    scale: number;
     width: number;
     height: number;
 }
 
 const DASHBOARD_GRID_COLUMNS = 9;
 const DASHBOARD_GRID_ROWS = 16;
+const DASHBOARD_DESIGN_CHUNK_SIZE = 88;
+const MIN_DASHBOARD_SCALE = 0.42;
 const DEFAULT_ROTATION_INTERVAL_SECONDS = 30;
 
 const severityLabels: Record<DashboardSeverity, string> = {
@@ -115,9 +119,18 @@ function useActiveTile(slot: DashboardTileSlot) {
     return tiles[activeIndex % tiles.length] ?? null;
 }
 
-function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
-    const horizontalGaps = (DASHBOARD_GRID_COLUMNS - 1) * grid.gap;
-    const verticalGaps = (DASHBOARD_GRID_ROWS - 1) * grid.gap;
+function getDashboardScale(chunkSize: number) {
+    if (!Number.isFinite(chunkSize) || chunkSize <= 0) {
+        return 1;
+    }
+
+    return Math.min(1, Math.max(MIN_DASHBOARD_SCALE, chunkSize / DASHBOARD_DESIGN_CHUNK_SIZE));
+}
+
+function calculateGridMetrics(grid: DashboardGrid, size: ElementSize, scale: number): Omit<GridMetrics, "scale"> {
+    const gap = grid.gap * scale;
+    const horizontalGaps = (DASHBOARD_GRID_COLUMNS - 1) * gap;
+    const verticalGaps = (DASHBOARD_GRID_ROWS - 1) * gap;
     const availableWidth = Math.max(0, size.width - horizontalGaps);
     const availableHeight = Math.max(0, size.height - verticalGaps);
     const chunkSize = Math.max(0, Math.min(
@@ -127,8 +140,23 @@ function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
 
     return {
         chunkSize,
+        gap,
         width: DASHBOARD_GRID_COLUMNS * chunkSize + horizontalGaps,
         height: DASHBOARD_GRID_ROWS * chunkSize + verticalGaps,
+    };
+}
+
+function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
+    let scale = 1;
+
+    for (let step = 0; step < 4; step += 1) {
+        const metrics = calculateGridMetrics(grid, size, scale);
+        scale = getDashboardScale(metrics.chunkSize);
+    }
+
+    return {
+        ...calculateGridMetrics(grid, size, scale),
+        scale,
     };
 }
 
@@ -401,13 +429,19 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
             height: gridMetrics.height,
             gridTemplateColumns: `repeat(${DASHBOARD_GRID_COLUMNS}, ${gridMetrics.chunkSize}px)`,
             gridTemplateRows: `repeat(${DASHBOARD_GRID_ROWS}, ${gridMetrics.chunkSize}px)`,
-            gap: config.grid.gap,
+            gap: gridMetrics.gap,
         }),
-        [config.grid, gridMetrics],
+        [gridMetrics],
+    );
+    const shellStyle = useMemo(
+        () => ({
+            "--dashboard-scale": gridMetrics.scale,
+        }) as CSSProperties,
+        [gridMetrics.scale],
     );
 
     return (
-        <main className="dashboard-shell">
+        <main className="dashboard-shell" style={shellStyle}>
             <section className="dashboard-stage" aria-label={config.title}>
                 <header className="dashboard-header">
                     <div>
