@@ -105,11 +105,19 @@ export interface DashboardGrid {
     gap: number;
 }
 
+export interface DashboardEmergency {
+    active: boolean;
+    message: string;
+    forceTwoLines?: boolean;
+    autoResetAt?: string;
+}
+
 export interface DashboardConfig {
     id: string;
     title: string;
     address: string;
     updatedAt: string;
     grid: DashboardGrid;
+    emergency?: DashboardEmergency;
     tiles: DashboardTileSlot[];
 }

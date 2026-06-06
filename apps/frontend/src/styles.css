@@ -22,14 +22,52 @@ body {
 
 .dashboard-shell {
     --dashboard-scale: 1;
+    --dashboard-emergency-height: 0px;
     --dashboard-shell-padding: clamp(16px, calc(var(--dashboard-scale) * 32px), 32px);
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    height: 100vh;
     min-height: 100vh;
     background:
         linear-gradient(135deg, rgba(49, 120, 115, 0.18), transparent 28%),
         linear-gradient(315deg, rgba(174, 88, 54, 0.14), transparent 30%),
         #edf2f4;
     color: #172026;
-    padding: var(--dashboard-shell-padding);
+    overflow: hidden;
+}
+
+.dashboard-shell_emergency {
+    grid-template-rows: var(--dashboard-emergency-height) minmax(0, 1fr);
+}
+
+.dashboard-emergency-banner {
+    align-items: center;
+    background: #cc0000;
+    color: #ffffff;
+    display: flex;
+    font-size: clamp(28px, 4vh, 48px);
+    font-weight: 900;
+    justify-content: center;
+    line-height: 1;
+    overflow: hidden;
+    padding: 0 3vw;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.dashboard-emergency-banner span {
+    display: block;
+    max-width: 100%;
+}
+
+.dashboard-emergency-banner_two-lines {
+    font-size: clamp(26px, 3.6vh, 48px);
+    line-height: 1.08;
+    white-space: normal;
+}
+
+.dashboard-emergency-banner_two-lines span {
+    display: block;
 }
 
 .dashboard-shell_loading {
@@ -51,9 +89,10 @@ body {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     gap: calc(var(--dashboard-scale) * 24px);
-    height: calc(100vh - var(--dashboard-shell-padding) - var(--dashboard-shell-padding));
+    height: 100%;
     margin: 0 auto;
     max-width: 1920px;
+    padding: var(--dashboard-shell-padding);
     width: min(100%, 960px);
 }
 

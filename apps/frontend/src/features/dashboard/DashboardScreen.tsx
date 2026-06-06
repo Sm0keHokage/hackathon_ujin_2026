@@ -24,6 +24,7 @@ import {
 import type {
     ClockTile,
     DashboardConfig,
+    DashboardEmergency,
     DashboardGrid,
     DashboardSeverity,
     DashboardStatus,
@@ -60,6 +61,9 @@ const DASHBOARD_GRID_ROWS = 16;
 const DASHBOARD_DESIGN_CHUNK_SIZE = 88;
 const MIN_DASHBOARD_SCALE = 0.42;
 const DEFAULT_ROTATION_INTERVAL_SECONDS = 30;
+const LONG_EMERGENCY_MESSAGE_LENGTH = 72;
+const EMERGENCY_BANNER_MAX_FONT_SIZE = 48;
+const EMERGENCY_BANNER_MIN_FONT_SIZE = 12;
 
 const severityLabels: Record<DashboardSeverity, string> = {
     info: "Информация",
@@ -73,6 +77,98 @@ function getTileGridPosition(layout: DashboardTileLayout): CSSProperties {
         gridColumn: `${layout.topLeft.x} / ${layout.bottomRight.x + 1}`,
         gridRow: `${layout.topLeft.y} / ${layout.bottomRight.y + 1}`,
     };
+}
+
+function isEmergencyVisible(emergency?: DashboardEmergency) {
+    return Boolean(emergency?.active && emergency.message.trim());
+}
+
+function shouldUseTwoLineEmergencyBanner(emergency: DashboardEmergency) {
+    return Boolean(
+        emergency.forceTwoLines
+        || emergency.message.length > LONG_EMERGENCY_MESSAGE_LENGTH,
+    );
+}
+
+function getEmergencyBannerHeight(emergency?: DashboardEmergency) {
+    if (!emergency || !isEmergencyVisible(emergency)) {
+        return "0px";
+    }
+
+    return shouldUseTwoLineEmergencyBanner(emergency) ? "10vh" : "5vh";
+}
+
+function useEmergencyBannerFontSize(message: string, isTwoLine: boolean) {
+    const bannerRef = useRef<HTMLElement | null>(null);
+    const textRef = useRef<HTMLSpanElement | null>(null);
+    const [fontSize, setFontSize] = useState(EMERGENCY_BANNER_MAX_FONT_SIZE);
+
+    useLayoutEffect(() => {
+        const banner = bannerRef.current;
+        const text = textRef.current;
+
+        if (!banner || !text) {
+            return;
+        }
+
+        const measure = () => {
+            const bannerHeight = banner.clientHeight;
+
+            if (bannerHeight <= 0) {
+                return;
+            }
+
+            const maxByHeight = bannerHeight * (isTwoLine ? 0.42 : 0.7);
+            let minSize = EMERGENCY_BANNER_MIN_FONT_SIZE;
+            let maxSize = Math.min(EMERGENCY_BANNER_MAX_FONT_SIZE, maxByHeight);
+
+            for (let step = 0; step < 12; step += 1) {
+                const nextSize = (minSize + maxSize) / 2;
+                text.style.fontSize = `${nextSize}px`;
+
+                const allowedLineCount = isTwoLine ? 2 : 1;
+                const lineHeight = nextSize * (isTwoLine ? 1.08 : 1);
+                const maxTextHeight = Math.min(bannerHeight, lineHeight * allowedLineCount);
+                const fitsWidth = text.scrollWidth <= text.clientWidth + 1;
+                const fitsHeight = text.scrollHeight <= maxTextHeight + 1;
+
+                if (fitsWidth && fitsHeight) {
+                    minSize = nextSize;
+                } else {
+                    maxSize = nextSize;
+                }
+            }
+
+            setFontSize(Math.floor(minSize));
+        };
+
+        measure();
+
+        const observer = new ResizeObserver(measure);
+        observer.observe(banner);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [isTwoLine, message]);
+
+    return { bannerRef, fontSize, textRef };
+}
+
+function EmergencyBanner({ emergency }: { emergency: DashboardEmergency }) {
+    const isTwoLine = shouldUseTwoLineEmergencyBanner(emergency);
+    const { bannerRef, fontSize, textRef } = useEmergencyBannerFontSize(emergency.message, isTwoLine);
+
+    return (
+        <aside
+            aria-label="Режим ЧС"
+            className={`dashboard-emergency-banner ${isTwoLine ? "dashboard-emergency-banner_two-lines" : ""}`}
+            ref={bannerRef}
+            role="alert"
+        >
+            <span ref={textRef} style={{ fontSize }}>{emergency.message}</span>
+        </aside>
+    );
 }
 
 function isRotatingTileGroup(slot: DashboardTileSlot): slot is RotatingTileGroup {
@@ -436,12 +532,16 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
     const shellStyle = useMemo(
         () => ({
             "--dashboard-scale": gridMetrics.scale,
+            "--dashboard-emergency-height": getEmergencyBannerHeight(config.emergency),
         }) as CSSProperties,
-        [gridMetrics.scale],
+        [config.emergency, gridMetrics.scale],
     );
+    const shellClassName = `dashboard-shell ${isEmergencyVisible(config.emergency) ? "dashboard-shell_emergency" : ""}`;
+    const emergency = config.emergency;
 
     return (
-        <main className="dashboard-shell" style={shellStyle}>
+        <main className={shellClassName} style={shellStyle}>
+            {emergency && isEmergencyVisible(emergency) ? <EmergencyBanner emergency={emergency} /> : null}
             <section className="dashboard-stage" aria-label={config.title}>
                 <header className="dashboard-header">
                     <div>
