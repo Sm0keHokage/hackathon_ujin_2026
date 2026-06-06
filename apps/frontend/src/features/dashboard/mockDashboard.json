@@ -1,4 +1,7 @@
 {
+    "id": "zhk",
+    "title": "ЖК",
+    "address": "Г. Пермь, Лучшая улица, -1",
     "updatedAt": "2026-06-06T10:00:00+05:00",
     "grid": {
         "columns": 12,
@@ -11,6 +14,7 @@
             "type": "clock",
             "title": "Сегодня",
             "timezone": "Asia/Yekaterinburg",
+            "subtitle": "Пермь",
             "layout": {
                 "x": 1,
                 "y": 1,
@@ -22,6 +26,8 @@
             "id": "service-phone",
             "type": "text",
             "title": "Диспетчерская",
+            "body": "+7 800 555 35 35",
+            "footer": "круглосуточно, кроме понедельника, вторника, среды, четверга, пятницы, субботы и воскресенья",
             "accent": "info",
             "layout": {
                 "x": 4,
@@ -33,6 +39,8 @@
         {
             "id": "payments",
             "type": "metric",
+            "title": "Ща всех выселим за неуплату",
+            "value": "67",
             "unit": "%",
             "caption": "квартир закрыли начисления",
             "status": "success",
@@ -47,7 +55,9 @@
             "id": "weather",
             "type": "metric",
             "title": "На улице",
+            "value": "+67",
             "unit": "°C",
+            "caption": "жарко, держитесь там",
             "status": "info",
             "layout": {
                 "x": 9,
@@ -63,12 +73,15 @@
             "items": [
                 {
                     "id": "notice-1",
+                    "title": "Отключение воды у всех ваших соседей",
+                    "text": "Работы пройдут 8 июня с 10:00 до 15:00, но вас не касается вы в совремнном доме с котельной",
                     "date": "2026-06-08",
                     "severity": "warning"
                 },
                 {
                     "id": "notice-2",
                     "title": "Проверка домофонов",
+                    "text": "Просим обеспечить доступ в технические помещения",
                     "date": "2026-06-09",
                     "severity": "info"
                 }
@@ -88,6 +101,7 @@
                 {
                     "id": "hot-water",
                     "label": "Горячая вода",
+                    "value": "горячо",
                     "status": "normal"
                 },
                 {
@@ -99,6 +113,7 @@
                 {
                     "id": "parking",
                     "label": "Паркинг",
+                    "value": "доступ открыт, весь заполнен",
                     "status": "normal"
                 }
             ],
@@ -113,6 +128,7 @@
             "id": "map",
             "type": "iframe",
             "title": "Транспорт рядом",
+            "src": "https://yandex.ru/map-widget/v1/?ll=60.597465%2C56.838011&z=14",
             "refreshIntervalSeconds": 600,
             "layout": {
                 "x": 9,
