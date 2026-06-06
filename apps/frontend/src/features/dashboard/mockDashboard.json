@@ -39,8 +39,8 @@
                     "y": 1
                 },
                 "bottomRight": {
-                    "x": 8,
-                    "y": 3
+                    "x": 7,
+                    "y": 4
                 }
             }
         },
@@ -54,7 +54,7 @@
             "status": "success",
             "layout": {
                 "topLeft": {
-                    "x": 9,
+                    "x": 8,
                     "y": 1
                 },
                 "bottomRight": {
