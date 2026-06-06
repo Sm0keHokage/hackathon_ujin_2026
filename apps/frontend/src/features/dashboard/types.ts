@@ -24,7 +24,6 @@ interface DashboardTileBase {
     id: string;
     type: DashboardTileType;
     title: string;
-    layout: DashboardTileLayout;
     accent?: DashboardSeverity;
 }
 
@@ -79,13 +78,26 @@ export interface IframeTile extends DashboardTileBase {
     refreshIntervalSeconds?: number;
 }
 
-export type DashboardTile =
+export type DashboardTileContent =
     | ClockTile
     | MetricTile
     | NoticeListTile
     | ServiceStatusTile
     | TextTile
     | IframeTile;
+
+export type DashboardTile = DashboardTileContent & {
+    layout: DashboardTileLayout;
+};
+
+export interface RotatingTileGroup {
+    id: string;
+    layout: DashboardTileLayout;
+    rotationIntervalSeconds?: number;
+    tiles: DashboardTileContent[];
+}
+
+export type DashboardTileSlot = DashboardTile | RotatingTileGroup;
 
 export interface DashboardGrid {
     columns: 9;
@@ -99,5 +111,5 @@ export interface DashboardConfig {
     address: string;
     updatedAt: string;
     grid: DashboardGrid;
-    tiles: DashboardTile[];
+    tiles: DashboardTileSlot[];
 }

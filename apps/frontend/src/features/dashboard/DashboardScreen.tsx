@@ -27,10 +27,13 @@ import type {
     DashboardGrid,
     DashboardSeverity,
     DashboardStatus,
-    DashboardTile,
+    DashboardTileContent,
+    DashboardTileLayout,
+    DashboardTileSlot,
     IframeTile,
     MetricTile,
     NoticeListTile,
+    RotatingTileGroup,
     ServiceStatusTile,
     TextTile,
 } from "./types";
@@ -52,6 +55,7 @@ interface GridMetrics {
 
 const DASHBOARD_GRID_COLUMNS = 9;
 const DASHBOARD_GRID_ROWS = 16;
+const DEFAULT_ROTATION_INTERVAL_SECONDS = 30;
 
 const severityLabels: Record<DashboardSeverity, string> = {
     info: "Информация",
@@ -60,11 +64,55 @@ const severityLabels: Record<DashboardSeverity, string> = {
     critical: "Срочно",
 };
 
-function getTileGridPosition(tile: DashboardTile): CSSProperties {
+function getTileGridPosition(layout: DashboardTileLayout): CSSProperties {
     return {
-        gridColumn: `${tile.layout.topLeft.x} / ${tile.layout.bottomRight.x + 1}`,
-        gridRow: `${tile.layout.topLeft.y} / ${tile.layout.bottomRight.y + 1}`,
+        gridColumn: `${layout.topLeft.x} / ${layout.bottomRight.x + 1}`,
+        gridRow: `${layout.topLeft.y} / ${layout.bottomRight.y + 1}`,
     };
+}
+
+function isRotatingTileGroup(slot: DashboardTileSlot): slot is RotatingTileGroup {
+    return "tiles" in slot;
+}
+
+function getSlotTiles(slot: DashboardTileSlot): DashboardTileContent[] {
+    return isRotatingTileGroup(slot) ? slot.tiles : [slot];
+}
+
+function normalizeRotationIntervalSeconds(value?: number) {
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+        ? value
+        : DEFAULT_ROTATION_INTERVAL_SECONDS;
+}
+
+function getSlotRotationIntervalSeconds(slot: DashboardTileSlot) {
+    return isRotatingTileGroup(slot)
+        ? normalizeRotationIntervalSeconds(slot.rotationIntervalSeconds)
+        : DEFAULT_ROTATION_INTERVAL_SECONDS;
+}
+
+function useActiveTile(slot: DashboardTileSlot) {
+    const tiles = useMemo(() => getSlotTiles(slot), [slot]);
+    const rotationIntervalSeconds = getSlotRotationIntervalSeconds(slot);
+    const [activeIndex, setActiveIndex] = useState(0);
+
+    useEffect(() => {
+        setActiveIndex(0);
+
+        if (tiles.length < 2) {
+            return;
+        }
+
+        const timerId = window.setInterval(() => {
+            setActiveIndex((currentIndex) => (currentIndex + 1) % tiles.length);
+        }, rotationIntervalSeconds * 1000);
+
+        return () => {
+            window.clearInterval(timerId);
+        };
+    }, [rotationIntervalSeconds, tiles]);
+
+    return tiles[activeIndex % tiles.length] ?? null;
 }
 
 function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
@@ -307,7 +355,7 @@ function ClockTileContent({ tile }: { tile: ClockTile }) {
     );
 }
 
-function renderTile(tile: DashboardTile) {
+function renderTile(tile: DashboardTileContent) {
     switch (tile.type) {
         case "clock":
             return <ClockTileContent tile={tile} />;
@@ -324,13 +372,19 @@ function renderTile(tile: DashboardTile) {
     }
 }
 
-function DashboardTileCard({ tile }: { tile: DashboardTile }) {
+function DashboardTileCard({ slot }: { slot: DashboardTileSlot }) {
+    const activeTile = useActiveTile(slot);
+
+    if (!activeTile) {
+        return null;
+    }
+
     return (
         <article
-            className={`dashboard-tile dashboard-tile_${tile.type} ${tile.accent ? `dashboard-tile_${tile.accent}` : ""}`}
-            style={getTileGridPosition(tile)}
+            className={`dashboard-tile dashboard-tile_${activeTile.type} ${activeTile.accent ? `dashboard-tile_${activeTile.accent}` : ""}`}
+            style={getTileGridPosition(slot.layout)}
         >
-            {renderTile(tile)}
+            {renderTile(activeTile)}
         </article>
     );
 }
@@ -368,8 +422,8 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
 
                 <div className="dashboard-grid-area" ref={gridArea.ref}>
                     <div className="dashboard-grid" style={gridStyle}>
-                        {config.tiles.map((tile) => (
-                            <DashboardTileCard key={tile.id} tile={tile} />
+                        {config.tiles.map((slot) => (
+                            <DashboardTileCard key={slot.id} slot={slot} />
                         ))}
                     </div>
                 </div>
