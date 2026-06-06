@@ -128,7 +128,7 @@
             "id": "map",
             "type": "iframe",
             "title": "Транспорт рядом",
-            "src": "https://yandex.ru/map-widget/v1/?ll=60.597465%2C56.838011&z=14",
+            "src": "https://yandex.ru/map-widget/v1/?um=constructor%3Af678d1aa64bee37f99fb4f0aecd121560355ca646ede8704345ddb57d0f8c96c&amp;source=constructor",
             "refreshIntervalSeconds": 600,
             "layout": {
                 "x": 9,
