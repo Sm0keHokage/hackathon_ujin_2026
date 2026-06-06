@@ -22,3 +22,4 @@ apps/frontend/dist/
 apps/frontend/coverage/
 .idea/
 .vscode/
+*.tsbuildinfo
