@@ -88,8 +88,8 @@ export type DashboardTile =
     | IframeTile;
 
 export interface DashboardGrid {
-    columns: number;
-    rows: number;
+    columns: 9;
+    rows: 16;
     gap: number;
 }
 

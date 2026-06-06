@@ -50,6 +50,9 @@ interface GridMetrics {
     height: number;
 }
 
+const DASHBOARD_GRID_COLUMNS = 9;
+const DASHBOARD_GRID_ROWS = 16;
+
 const severityLabels: Record<DashboardSeverity, string> = {
     info: "Информация",
     success: "Норма",
@@ -65,16 +68,19 @@ function getTileGridPosition(tile: DashboardTile): CSSProperties {
 }
 
 function getGridMetrics(grid: DashboardGrid, size: ElementSize): GridMetrics {
-    const horizontalGaps = Math.max(0, grid.columns - 1) * grid.gap;
-    const verticalGaps = Math.max(0, grid.rows - 1) * grid.gap;
+    const horizontalGaps = (DASHBOARD_GRID_COLUMNS - 1) * grid.gap;
+    const verticalGaps = (DASHBOARD_GRID_ROWS - 1) * grid.gap;
     const availableWidth = Math.max(0, size.width - horizontalGaps);
     const availableHeight = Math.max(0, size.height - verticalGaps);
-    const chunkSize = Math.max(0, Math.min(availableWidth / grid.columns, availableHeight / grid.rows));
+    const chunkSize = Math.max(0, Math.min(
+        availableWidth / DASHBOARD_GRID_COLUMNS,
+        availableHeight / DASHBOARD_GRID_ROWS,
+    ));
 
     return {
         chunkSize,
-        width: grid.columns * chunkSize + horizontalGaps,
-        height: grid.rows * chunkSize + verticalGaps,
+        width: DASHBOARD_GRID_COLUMNS * chunkSize + horizontalGaps,
+        height: DASHBOARD_GRID_ROWS * chunkSize + verticalGaps,
     };
 }
 
@@ -339,8 +345,8 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
         () => ({
             width: gridMetrics.width,
             height: gridMetrics.height,
-            gridTemplateColumns: `repeat(${config.grid.columns}, ${gridMetrics.chunkSize}px)`,
-            gridTemplateRows: `repeat(${config.grid.rows}, ${gridMetrics.chunkSize}px)`,
+            gridTemplateColumns: `repeat(${DASHBOARD_GRID_COLUMNS}, ${gridMetrics.chunkSize}px)`,
+            gridTemplateRows: `repeat(${DASHBOARD_GRID_ROWS}, ${gridMetrics.chunkSize}px)`,
             gap: config.grid.gap,
         }),
         [config.grid, gridMetrics],

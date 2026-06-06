@@ -4,8 +4,8 @@
     "address": "Г. Пермь, Лучшая улица, -1",
     "updatedAt": "2026-06-06T10:00:00+05:00",
     "grid": {
-        "columns": 16,
-        "rows": 9,
+        "columns": 9,
+        "rows": 16,
         "gap": 16
     },
     "tiles": [
@@ -22,43 +22,6 @@
                 },
                 "bottomRight": {
                     "x": 4,
-                    "y": 4
-                }
-            }
-        },
-        {
-            "id": "service-phone",
-            "type": "text",
-            "title": "Диспетчерская",
-            "body": "+7 800 555 35 35",
-            "footer": "круглосуточно, кроме понедельника, вторника, среды, четверга, пятницы, субботы и воскресенья",
-            "accent": "info",
-            "layout": {
-                "topLeft": {
-                    "x": 5,
-                    "y": 1
-                },
-                "bottomRight": {
-                    "x": 7,
-                    "y": 4
-                }
-            }
-        },
-        {
-            "id": "payments",
-            "type": "metric",
-            "title": "Ща всех выселим за неуплату",
-            "value": "67",
-            "unit": "%",
-            "caption": "квартир закрыли начисления",
-            "status": "success",
-            "layout": {
-                "topLeft": {
-                    "x": 8,
-                    "y": 1
-                },
-                "bottomRight": {
-                    "x": 11,
                     "y": 3
                 }
             }
@@ -73,11 +36,11 @@
             "status": "info",
             "layout": {
                 "topLeft": {
-                    "x": 12,
+                    "x": 5,
                     "y": 1
                 },
                 "bottomRight": {
-                    "x": 16,
+                    "x": 9,
                     "y": 3
                 }
             }
@@ -105,11 +68,11 @@
             "layout": {
                 "topLeft": {
                     "x": 1,
-                    "y": 5
+                    "y": 4
                 },
                 "bottomRight": {
-                    "x": 7,
-                    "y": 9
+                    "x": 9,
+                    "y": 8
                 }
             }
         },
@@ -139,12 +102,49 @@
             ],
             "layout": {
                 "topLeft": {
-                    "x": 8,
-                    "y": 4
+                    "x": 1,
+                    "y": 9
                 },
                 "bottomRight": {
-                    "x": 11,
+                    "x": 5,
+                    "y": 13
+                }
+            }
+        },
+        {
+            "id": "payments",
+            "type": "metric",
+            "title": "Ща всех выселим за неуплату",
+            "value": "67",
+            "unit": "%",
+            "caption": "квартир закрыли начисления",
+            "status": "success",
+            "layout": {
+                "topLeft": {
+                    "x": 6,
                     "y": 9
+                },
+                "bottomRight": {
+                    "x": 9,
+                    "y": 11
+                }
+            }
+        },
+        {
+            "id": "service-phone",
+            "type": "text",
+            "title": "Диспетчерская",
+            "body": "+7 800 555 35 35",
+            "footer": "круглосуточно, кроме понедельника, вторника, среды, четверга, пятницы, субботы и воскресенья",
+            "accent": "info",
+            "layout": {
+                "topLeft": {
+                    "x": 6,
+                    "y": 12
+                },
+                "bottomRight": {
+                    "x": 9,
+                    "y": 13
                 }
             }
         },
@@ -156,12 +156,12 @@
             "refreshIntervalSeconds": 600,
             "layout": {
                 "topLeft": {
-                    "x": 12,
-                    "y": 4
+                    "x": 1,
+                    "y": 14
                 },
                 "bottomRight": {
-                    "x": 16,
-                    "y": 9
+                    "x": 9,
+                    "y": 16
                 }
             }
         }
