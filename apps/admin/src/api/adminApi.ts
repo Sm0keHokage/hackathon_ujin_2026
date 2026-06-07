@@ -69,23 +69,16 @@ export function assignTemplate(payload: TemplateAssignRequest, options?: ApiRequ
     });
 }
 
-export async function assignTemplateToTarget(
+export function assignTemplateToTarget(
     payload: TemplateAssignTargetRequest,
     options?: ApiRequestOptions,
 ) {
-    const tabloIds = await resolveTargetTabloIds(payload.target, options);
-
-    await Promise.all(
-        tabloIds.map((tabloId) =>
-            assignTemplate(
-                {
-                    tablo_id: tabloId,
-                    template_id: payload.template_id,
-                },
-                options,
-            ),
-        ),
-    );
+    return requestJson<void>("/api/templates/assign-target", {
+        method: "POST",
+        admin: true,
+        body: payload,
+        signal: options?.signal,
+    });
 }
 
 export function getEmergencyState(options?: ApiRequestOptions) {
@@ -94,24 +87,14 @@ export function getEmergencyState(options?: ApiRequestOptions) {
     });
 }
 
-export async function activateEmergency(
+export function activateEmergency(
     payload: EmergencyActivateRequest,
     options?: ApiRequestOptions,
 ) {
-    const tabloIds = payload.target
-        ? await resolveEmergencyTabloIds(payload.target, options)
-        : uniqueValues(payload.tablo_ids ?? []);
-
     return requestJson<EmergencyState>("/api/emergency/activate", {
         method: "POST",
         admin: true,
-        body: {
-            title: payload.title ?? "Внимание жильцам",
-            message: payload.message,
-            tablo_ids: tabloIds,
-            affected_buildings: payload.affected_buildings ?? [],
-            priority: payload.priority ?? 1,
-        },
+        body: payload,
         signal: options?.signal,
     });
 }
@@ -138,38 +121,6 @@ export const adminApi = {
     deactivateEmergency,
 };
 
-async function resolveTargetTabloIds(target: AdminTarget, options?: ApiRequestOptions) {
-    if (target.mode === "screens") {
-        return uniqueValues(target.tablo_ids ?? []);
-    }
-
-    const screens = await getScreens(options);
-
-    if (target.mode === "all") {
-        return uniqueValues(screens.map((screen) => screen.tablo_id));
-    }
-
-    const selectedGroups = new Set(target.group_names ?? []);
-
-    return uniqueValues(
-        screens
-            .filter((screen) => screen.group_name && selectedGroups.has(screen.group_name))
-            .map((screen) => screen.tablo_id),
-    );
-}
-
-async function resolveEmergencyTabloIds(target: AdminTarget, options?: ApiRequestOptions) {
-    if (target.mode === "all") {
-        return [];
-    }
-
-    return resolveTargetTabloIds(target, options);
-}
-
 function encodePathPart(value: number | string) {
     return encodeURIComponent(String(value));
-}
-
-function uniqueValues(values: string[]) {
-    return Array.from(new Set(values.filter(Boolean)));
 }
