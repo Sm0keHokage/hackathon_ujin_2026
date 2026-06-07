@@ -8,7 +8,11 @@ COPY packages/shared ./packages/shared
 COPY apps/frontend ./apps/frontend
 WORKDIR /app/apps/frontend
 ARG VITE_API_BASE_URL
+ARG VITE_WS_BASE_URL
+ARG VITE_TABLO_ID
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_WS_BASE_URL=$VITE_WS_BASE_URL
+ENV VITE_TABLO_ID=$VITE_TABLO_ID
 RUN npm run build
 FROM nginx:stable-alpine
 COPY apps/frontend/nginx.conf /etc/nginx/conf.d/default.conf

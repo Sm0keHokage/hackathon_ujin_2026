@@ -204,7 +204,9 @@ async def websocket_lobby(
     try:
         while True:
             await websocket.receive_text()
-    except WebSocketDisconnect:
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
         ws_manager.disconnect(tablo_id)
         await screens_repo.mark_offline(Session, tablo_id)
 
