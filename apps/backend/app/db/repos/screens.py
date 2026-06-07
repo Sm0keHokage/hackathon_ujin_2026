@@ -31,6 +31,16 @@ async def mark_offline(Session: SessionFactory, tablo_id: str) -> None:
         await session.commit()
 
 
+async def touch_last_seen(Session: SessionFactory, tablo_id: str) -> None:
+    async with Session() as session:
+        await session.execute(
+            sa_update(Screen)
+            .where(Screen.tablo_id == tablo_id)
+            .values(is_online=True, last_seen_at=func.now())
+        )
+        await session.commit()
+
+
 async def get_all(Session: SessionFactory) -> list[ScreenInfo]:
     async with Session() as session:
         stmt = (
