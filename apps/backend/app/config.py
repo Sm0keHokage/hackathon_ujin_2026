@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     ujin_max_retries: int = 2
     ujin_retry_backoff: float = 0.5
-    backend_cors_origins: str = Field(default="http://localhost:5173,http://127.0.0.1:5173")
+    backend_cors_origins: str = Field(default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:3001,http://127.0.0.1:3001")
     poll_interval_fast: int = 300
     poll_interval_medium: int = 1800
     poll_interval_daily: int = 86400

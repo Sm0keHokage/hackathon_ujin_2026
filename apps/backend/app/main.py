@@ -249,9 +249,18 @@ async def activate_emergency(update: EmergencyUpdate, request: Request) -> Emerg
         else None
     )
 
+    tablo_ids = update.tablo_ids
+    if update.target:
+        tablo_ids = await templates_repo.get_tablo_ids_by_target(
+            Session,
+            mode=update.target.mode,
+            tablo_ids=update.target.tablo_ids,
+            group_names=update.target.group_names,
+        )
+
     log_id = await emergency_log_repo.log_activation(
         Session,
-        tablo_ids=update.tablo_ids or ["all"],
+        tablo_ids=tablo_ids or ["all"],
         emergency_text=update.message,
         priority=update.priority,
         auto_reset_sec=auto_reset_sec,
@@ -262,7 +271,7 @@ async def activate_emergency(update: EmergencyUpdate, request: Request) -> Emerg
             active=True,
             title=update.title,
             message=update.message,
-            tablo_ids=update.tablo_ids,
+            tablo_ids=tablo_ids,
             affected_buildings=update.affected_buildings,
             priority=update.priority,
             log_id=log_id,
@@ -271,7 +280,10 @@ async def activate_emergency(update: EmergencyUpdate, request: Request) -> Emerg
     )
 
     payload = {"type": "emergency", "data": state.model_dump(mode="json")}
-    await ws_manager.broadcast_to(update.tablo_ids, payload)
+    if tablo_ids:
+        await ws_manager.broadcast_to(tablo_ids, payload)
+    else:
+        await ws_manager.broadcast_all(payload)
     return state
 
 
@@ -386,7 +398,6 @@ async def assign_template(payload: TemplateAssign, request: Request) -> None:
     if (await templates_repo.get(Session, payload.template_id)) is None:
         raise HTTPException(status_code=404, detail="Template not found")
     await templates_repo.assign_to_screen(Session, payload.tablo_id, payload.template_id)
-    # Сразу пушнуть новый дашборд на этот экран, если он подключён.
     ws_manager: ConnectionManager = request.app.state.ws_manager
     cache = request.app.state.cache
     try:
