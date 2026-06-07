@@ -24,6 +24,11 @@ button {
     font: inherit;
 }
 
+input,
+select {
+    font: inherit;
+}
+
 .admin-shell {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
@@ -160,6 +165,12 @@ button {
     box-shadow: 0 18px 42px rgba(46, 69, 80, 0.08);
 }
 
+.admin-panel_full {
+    display: grid;
+    gap: 18px;
+    align-content: start;
+}
+
 .admin-panel__heading {
     display: grid;
     gap: 8px;
@@ -176,6 +187,215 @@ button {
     color: #536974;
     font-size: 15px;
     line-height: 1.5;
+}
+
+.admin-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #ffffff;
+    background: #0f5668;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.admin-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.admin-button svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+}
+
+.admin-button_secondary {
+    color: #1b3543;
+    border-color: rgba(59, 82, 96, 0.18);
+    background: #ffffff;
+}
+
+.admin-alert {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-left: 4px solid #d9902f;
+    border-radius: 8px;
+    color: #51350f;
+    background: #fff5e7;
+}
+
+.admin-alert span {
+    color: #684515;
+}
+
+.admin-field {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-field span {
+    color: #61717a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.admin-field select,
+.admin-search {
+    min-height: 40px;
+    border: 1px solid rgba(59, 82, 96, 0.18);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.admin-field select {
+    min-width: 180px;
+    padding: 0 12px;
+    color: #263945;
+}
+
+.admin-field_search {
+    min-width: min(360px, 100%);
+}
+
+.admin-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+.admin-search svg {
+    width: 18px;
+    height: 18px;
+    color: #60727d;
+    flex: 0 0 auto;
+}
+
+.admin-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: #263945;
+    background: transparent;
+}
+
+.screens-toolbar,
+.screens-filters {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.screens-filters {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.screens-toolbar .admin-button {
+    flex: 0 0 auto;
+}
+
+.screens-table-wrap {
+    overflow: auto;
+    border: 1px solid rgba(59, 82, 96, 0.12);
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.screens-table {
+    width: 100%;
+    min-width: 860px;
+    border-collapse: collapse;
+}
+
+.screens-table th,
+.screens-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(59, 82, 96, 0.1);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.screens-table th {
+    color: #61717a;
+    background: #f6f9f9;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.screens-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.screens-table__row_selected {
+    background: #eff7f8;
+}
+
+.screens-table__check {
+    width: 72px;
+}
+
+.screens-table__check input {
+    width: 18px;
+    height: 18px;
+    accent-color: #0f5668;
+}
+
+.screen-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.screen-name svg {
+    width: 20px;
+    height: 20px;
+    color: #226879;
+    flex: 0 0 auto;
+}
+
+.screen-name strong,
+.screen-template strong {
+    display: block;
+    color: #14212b;
+}
+
+.screen-name span,
+.screen-template span,
+.screen-muted {
+    color: #61717a;
+    font-size: 13px;
+}
+
+.screen-status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.screen-status_online {
+    color: #156244;
+    background: #dff4e8;
+}
+
+.screen-status_offline {
+    color: #7a2f2f;
+    background: #f8e2df;
 }
 
 @media (max-width: 820px) {
@@ -202,5 +422,21 @@ button {
 
     .admin-workspace {
         padding: 20px;
+    }
+
+    .screens-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .screens-toolbar .admin-button,
+    .screens-filters .admin-button {
+        width: 100%;
+    }
+
+    .admin-field,
+    .admin-field select,
+    .admin-field_search {
+        width: 100%;
     }
 }

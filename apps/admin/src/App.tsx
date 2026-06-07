@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
 import { apiBaseUrl } from "./config";
+import { ScreensPage } from "./features/screens/ScreensPage";
 
 type AdminPageId = "screens" | "templates" | "emergency";
 
@@ -121,11 +122,7 @@ function AdminPageContent({ pageId }: AdminPageContentProps) {
     }
 
     return (
-        <section className="admin-panel">
-            <div className="admin-panel__heading">
-                <h2>Экраны</h2>
-            </div>
-        </section>
+        <ScreensPage />
     );
 }
 
