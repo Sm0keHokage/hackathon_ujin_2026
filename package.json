@@ -1,0 +1,20 @@
+{
+  "name": "hackathon-ujin-2026",
+  "private": true,
+  "workspaces": [
+    "apps/admin",
+    "apps/frontend",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:admin": "npm --workspace apps/admin run dev",
+    "build:admin": "npm --workspace apps/admin run build",
+    "lint:admin": "npm --workspace apps/admin run lint",
+    "dev:frontend": "npm --workspace apps/frontend run dev",
+    "build:frontend": "npm --workspace apps/frontend run build",
+    "lint:frontend": "npm --workspace apps/frontend run lint"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2"
+  }
+}

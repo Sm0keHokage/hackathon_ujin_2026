@@ -1,0 +1,90 @@
+name: CI & DEPLOY
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  frontend:
+    name: Front
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint:frontend
+      - name: Build
+        run: npm run build:frontend
+
+  admin:
+    name: Admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint:admin
+      - name: Build
+        run: npm run build:admin
+
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/backend/requirements.txt
+      - name: Check syntax
+        run: python -m compileall apps/backend/app
+
+  deploy:
+    name: Deploy
+    needs: [frontend, admin, backend]
+    if: github.ref == 'refs/heads/dev'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env file
+        run: |
+          echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" > .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
+          echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "UJIN_API_BASE_URL=${{ secrets.UJIN_API_BASE_URL }}" >> .env
+          echo "UJIN_REFERER=${{ secrets.UJIN_REFERER }}" >> .env
+          echo "UJIN_REQUEST_TIMEOUT=${{ secrets.UJIN_REQUEST_TIMEOUT }}" >> .env
+          echo "UJIN_TOKEN=${{ secrets.UJIN_TOKEN }}" >> .env
+          echo "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" >> .env
+          echo "BACKEND_CORS_ORIGINS=${{ secrets.BACKEND_CORS_ORIGINS }}" >> .env
+          echo "POLL_INTERVAL_FAST=${{ secrets.POLL_INTERVAL_FAST }}" >> .env
+          echo "POLL_INTERVAL_MEDIUM=${{ secrets.POLL_INTERVAL_MEDIUM }}" >> .env
+          echo "POLL_INTERVAL_DAILY=${{ secrets.POLL_INTERVAL_DAILY }}" >> .env
+          echo "EMERGENCY_AUTO_RESET_SEC=${{ secrets.EMERGENCY_AUTO_RESET_SEC }}" >> .env
+          echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> .env
+          echo "OPENWEATHER_CITY=${{ secrets.OPENWEATHER_CITY }}" >> .env
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" >> .env
+          echo "VITE_ADMIN_TOKEN=${{ secrets.VITE_ADMIN_TOKEN }}" >> .env
+      - name: Deploy
+        run: |
+          docker compose up -d --build
+          docker image prune -f
