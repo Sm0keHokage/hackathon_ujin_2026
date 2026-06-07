@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime, timezone
 from typing import Any
 from sqlalchemy import select
+
+logger = logging.getLogger(__name__)
 from app.dashboard import (
     Accent,
     ClockTile,
@@ -153,8 +156,8 @@ async def build_dashboard_config(
     if assigned:
         try:
             return DashboardConfig.model_validate(assigned)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Template validation failed for tablo_id=%s: %s", tablo_id, exc)
 
     buildings: list[BuildingSummary] = cache.get("buildings") or []
     parking: dict[int, ResourceSummary] = cache.get("parking") or {}
