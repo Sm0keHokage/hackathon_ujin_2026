@@ -2,11 +2,12 @@ import { Edit2, Eye, Plus, Play, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
-import type { TemplateInfo } from "../../api";
+import type { DashboardTemplateConfig, TemplateInfo } from "../../api";
 import { AssignTemplateModal } from "./AssignTemplateModal";
 import { DashboardPreviewFrame } from "./DashboardPreview";
 import { DEFAULT_TEMPLATE_CONFIG } from "./constants";
 import { openTemplatePreview } from "./previewStorage";
+import { TemplateEditorModal } from "./TemplateEditorModal";
 
 type TemplatesStatus = "idle" | "loading" | "ready";
 
@@ -23,8 +24,9 @@ export function TemplatesPage() {
         error: null,
     });
 
-    const [isCreating, setIsCreating] = useState(false);
+    const [isCreateEditorOpen, setIsCreateEditorOpen] = useState(false);
     const [assigningTemplate, setAssigningTemplate] = useState<TemplateInfo | null>(null);
+    const [editingTemplate, setEditingTemplate] = useState<TemplateInfo | null>(null);
 
     const loadTemplates = async (signal?: AbortSignal) => {
         setState((current) => ({ ...current, status: "loading", error: null }));
@@ -47,37 +49,8 @@ export function TemplatesPage() {
         return () => controller.abort();
     }, []);
 
-    const handleCreate = async () => {
-        const name = prompt("Введите название шаблона:", "Новый шаблон");
-        if (!name) return;
-
-        setIsCreating(true);
-        try {
-            await adminApi.createTemplate({
-                name,
-                config_json: {
-                    ...DEFAULT_TEMPLATE_CONFIG,
-                    title: name,
-                },
-            });
-            void loadTemplates();
-        } catch (error) {
-            alert(resolveError(error));
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    const handleRename = async (template: TemplateInfo) => {
-        const newName = prompt("Введите новое название шаблона:", template.name);
-        if (!newName || newName === template.name) return;
-
-        try {
-            await adminApi.updateTemplate(template.id, { name: newName });
-            void loadTemplates();
-        } catch (error) {
-            alert(resolveError(error));
-        }
+    const handleCreate = () => {
+        setIsCreateEditorOpen(true);
     };
 
     const handleDelete = async (template: TemplateInfo) => {
@@ -119,7 +92,6 @@ export function TemplatesPage() {
                     </button>
                     <button
                         className="admin-button admin-button_primary"
-                        disabled={isCreating}
                         onClick={handleCreate}
                         type="button"
                     >
@@ -169,8 +141,8 @@ export function TemplatesPage() {
                                     <Play size={18} />
                                 </button>
                                 <button 
-                                    onClick={() => handleRename(template)}
-                                    title="Переименовать"
+                                    onClick={() => setEditingTemplate(template)}
+                                    title="Редактировать"
                                     className="admin-icon-button"
                                 >
                                     <Edit2 size={18} />
@@ -202,6 +174,29 @@ export function TemplatesPage() {
                     }}
                 />
             )}
+
+            {isCreateEditorOpen && (
+                <TemplateEditorModal
+                    initialConfig={createTemplateDraftConfig()}
+                    initialName="Новый шаблон"
+                    onClose={() => setIsCreateEditorOpen(false)}
+                    onSaved={() => {
+                        setIsCreateEditorOpen(false);
+                        void loadTemplates();
+                    }}
+                />
+            )}
+
+            {editingTemplate && (
+                <TemplateEditorModal
+                    template={editingTemplate}
+                    onClose={() => setEditingTemplate(null)}
+                    onSaved={() => {
+                        setEditingTemplate(null);
+                        void loadTemplates();
+                    }}
+                />
+            )}
         </section>
     );
 }
@@ -211,4 +206,15 @@ function resolveError(error: unknown) {
         return error.message;
     }
     return "Не удалось выполнить операцию";
+}
+
+function createTemplateDraftConfig(): DashboardTemplateConfig {
+    const now = new Date();
+
+    return {
+        ...structuredClone(DEFAULT_TEMPLATE_CONFIG),
+        id: `template-${now.getTime()}`,
+        title: "Новый шаблон",
+        updatedAt: now.toISOString(),
+    };
 }
