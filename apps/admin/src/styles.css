@@ -2,8 +2,8 @@
     color: #14212b;
     background: #eef3f4;
     font-family:
-        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-        sans-serif;
+            Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+            sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -43,8 +43,8 @@ textarea {
     grid-template-columns: 280px minmax(0, 1fr);
     min-height: 100vh;
     background:
-        linear-gradient(135deg, rgba(95, 152, 156, 0.18), rgba(235, 229, 224, 0.38)),
-        var(--admin-bg);
+            linear-gradient(135deg, rgba(95, 152, 156, 0.18), rgba(235, 229, 224, 0.38)),
+            var(--admin-bg);
 }
 
 .admin-sidebar {
@@ -968,8 +968,8 @@ textarea {
     grid-template-rows: auto minmax(0, 1fr);
     min-height: 100vh;
     background:
-        linear-gradient(135deg, rgba(95, 152, 156, 0.18), rgba(235, 229, 224, 0.38)),
-        var(--admin-bg);
+            linear-gradient(135deg, rgba(95, 152, 156, 0.18), rgba(235, 229, 224, 0.38)),
+            var(--admin-bg);
 }
 
 .dashboard-preview-page__header {
@@ -1043,9 +1043,9 @@ textarea {
     min-height: 100%;
     overflow: hidden;
     background:
-        linear-gradient(135deg, rgba(49, 120, 115, 0.18), transparent 28%),
-        linear-gradient(315deg, rgba(174, 88, 54, 0.14), transparent 30%),
-        #edf2f4;
+            linear-gradient(135deg, rgba(49, 120, 115, 0.18), transparent 28%),
+            linear-gradient(315deg, rgba(174, 88, 54, 0.14), transparent 30%),
+            #edf2f4;
     color: #172026;
 }
 
@@ -1466,4 +1466,14 @@ textarea {
     .template-editor__actions {
         grid-template-columns: 1fr;
     }
+}
+
+.emergency-form {
+    display: grid;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.emergency-form .admin-toolbar-actions {
+    justify-content: flex-end;
 }

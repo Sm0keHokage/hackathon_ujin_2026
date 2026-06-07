@@ -30,7 +30,9 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-         - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_WS_BASE_URL: ${VITE_WS_BASE_URL:-}
+        VITE_TABLO_ID: ${VITE_TABLO_ID:-}
     restart: unless-stopped
     ports:
       - "80:80"
@@ -42,8 +44,8 @@ services:
       context: .
       dockerfile: apps/admin/Dockerfile
       args:
-         - VITE_API_BASE_URL=${VITE_API_BASE_URL}
-         - VITE_ADMIN_TOKEN=${VITE_ADMIN_TOKEN}
+        VITE_API_BASE_URL: ${VITE_ADMIN_API_BASE_URL:-/}
+        VITE_ADMIN_TOKEN: ${ADMIN_TOKEN:-}
     restart: unless-stopped
     ports:
       - "81:80"
