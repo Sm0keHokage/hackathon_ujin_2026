@@ -13,5 +13,8 @@
     "dev:frontend": "npm --workspace apps/frontend run dev",
     "build:frontend": "npm --workspace apps/frontend run build",
     "lint:frontend": "npm --workspace apps/frontend run lint"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.2"
   }
 }
