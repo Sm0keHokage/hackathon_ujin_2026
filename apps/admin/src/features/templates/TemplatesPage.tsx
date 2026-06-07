@@ -1,9 +1,10 @@
-import { Edit2, LayoutTemplate, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Edit2, LayoutTemplate, Plus, Play, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
 import type { TemplateInfo } from "../../api";
 import { DEFAULT_TEMPLATE_CONFIG } from "./constants";
+import { AssignTemplateModal } from "./AssignTemplateModal";
 
 type TemplatesStatus = "idle" | "loading" | "ready";
 
@@ -21,6 +22,7 @@ export function TemplatesPage() {
     });
 
     const [isCreating, setIsCreating] = useState(false);
+    const [assigningTemplate, setAssigningTemplate] = useState<TemplateInfo | null>(null);
 
     const loadTemplates = async (signal?: AbortSignal) => {
         setState((current) => ({ ...current, status: "loading", error: null }));
@@ -146,6 +148,13 @@ export function TemplatesPage() {
                             </div>
                             <div className="template-card__actions">
                                 <button 
+                                    onClick={() => setAssigningTemplate(template)}
+                                    title="Назначить на экраны"
+                                    className="admin-icon-button admin-icon-button_success"
+                                >
+                                    <Play size={18} />
+                                </button>
+                                <button 
                                     onClick={() => handleRename(template)}
                                     title="Переименовать"
                                     className="admin-icon-button"
@@ -168,6 +177,17 @@ export function TemplatesPage() {
                     <p className="admin-muted">Шаблоны еще не созданы.</p>
                 )}
             </div>
+
+            {assigningTemplate && (
+                <AssignTemplateModal 
+                    template={assigningTemplate}
+                    onClose={() => setAssigningTemplate(null)}
+                    onSuccess={() => {
+                        setAssigningTemplate(null);
+                        alert("Шаблон успешно назначен");
+                    }}
+                />
+            )}
         </section>
     );
 }
