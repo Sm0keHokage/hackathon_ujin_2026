@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from pydantic import BaseModel, Field
 from app.dashboard import DashboardConfig
 
@@ -62,9 +63,16 @@ class EmergencyState(BaseModel):
     auto_reset_at: datetime | None = None
 
 
+class AssignmentTarget(BaseModel):
+    mode: Literal["screens", "groups", "all"]
+    tablo_ids: list[str] = Field(default_factory=list)
+    group_names: list[str] = Field(default_factory=list)
+
+
 class EmergencyUpdate(BaseModel):
     title: str = "Внимание жильцам"
     message: str
+    target: AssignmentTarget | None = None
     tablo_ids: list[str] = Field(default_factory=list)
     affected_buildings: list[int] = Field(default_factory=list)
     priority: int = 1
@@ -171,3 +179,8 @@ class TemplateUpdate(BaseModel):
 class TemplateAssign(BaseModel):
     tablo_id: str
     template_id: int
+
+
+class BulkTemplateAssign(BaseModel):
+    template_id: int
+    target: AssignmentTarget

@@ -21,6 +21,7 @@ from app.db.repos import static_content as static_content_repo
 from app.dashboard import DashboardConfig
 from app.dashboard_builder import build_dashboard_config
 from app.models import (
+    BulkTemplateAssign,
     EmergencyState,
     EmergencyUpdate,
     LobbyOverview,
@@ -396,6 +397,41 @@ async def assign_template(payload: TemplateAssign, request: Request) -> None:
         )
     except Exception as exc:
         logger.warning("Could not push dashboard after assign: %s", exc)
+
+
+@app.post(
+    "/api/templates/assign-target",
+    status_code=204,
+    dependencies=[Depends(require_admin)],
+)
+async def assign_template_bulk(payload: BulkTemplateAssign, request: Request) -> None:
+    Session = request.app.state.Session
+    if (await templates_repo.get(Session, payload.template_id)) is None:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    tablo_ids = await templates_repo.get_tablo_ids_by_target(
+        Session,
+        mode=payload.target.mode,
+        tablo_ids=payload.target.tablo_ids,
+        group_names=payload.target.group_names,
+    )
+
+    if not tablo_ids:
+        return
+
+    await templates_repo.bulk_assign_to_targets(Session, payload.template_id, tablo_ids)
+
+    ws_manager: ConnectionManager = request.app.state.ws_manager
+    cache = request.app.state.cache
+    for tid in tablo_ids:
+        try:
+            cfg = await build_dashboard_config(Session, cache, tid)
+            await ws_manager.send_to(
+                tid,
+                {"type": "dashboard", "data": cfg.model_dump(mode="json", by_alias=True)},
+            )
+        except Exception as exc:
+            logger.warning("Could not push dashboard to %s after bulk assign: %s", tid, exc)
 
 
 @app.delete(

@@ -14,6 +14,7 @@ async def upsert_online(Session: SessionFactory, tablo_id: str, name: str | None
             name=name or tablo_id,
             is_online=True,
             last_seen_at=func.now(),
+            created_at=func.now(),
         ).on_conflict_do_update(
             index_elements=["tablo_id"],
             set_={"is_online": True, "last_seen_at": func.now()},

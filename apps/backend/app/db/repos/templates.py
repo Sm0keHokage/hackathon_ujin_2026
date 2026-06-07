@@ -78,12 +78,13 @@ async def assign_to_screen(
     async with Session() as session:
         await session.execute(
             pg_insert(Screen).values(
-                tablo_id=tablo_id, name=tablo_id, is_online=False
+                tablo_id=tablo_id, name=tablo_id, is_online=False, created_at=func.now()
             ).on_conflict_do_nothing(index_elements=["tablo_id"])
         )
         stmt = pg_insert(ScreenTemplate).values(
             tablo_id=tablo_id,
             template_id=template_id,
+            assigned_at=func.now(),
         ).on_conflict_do_update(
             index_elements=["tablo_id"],
             set_={"template_id": template_id, "assigned_at": func.now()},
@@ -97,4 +98,52 @@ async def unassign_screen(Session: SessionFactory, tablo_id: str) -> None:
         await session.execute(
             delete(ScreenTemplate).where(ScreenTemplate.tablo_id == tablo_id)
         )
+        await session.commit()
+
+
+async def get_tablo_ids_by_target(
+    Session: SessionFactory,
+    mode: str,
+    tablo_ids: list[str] | None = None,
+    group_names: list[str] | None = None,
+) -> list[str]:
+    async with Session() as session:
+        if mode == "all":
+            result = await session.execute(select(Screen.tablo_id))
+            return list(result.scalars().all())
+        elif mode == "groups":
+            if not group_names:
+                return []
+            result = await session.execute(
+                select(Screen.tablo_id).where(Screen.group_name.in_(group_names))
+            )
+            return list(result.scalars().all())
+        elif mode == "screens":
+            return tablo_ids or []
+        return []
+
+
+async def bulk_assign_to_targets(
+    Session: SessionFactory,
+    template_id: int,
+    tablo_ids: list[str],
+) -> None:
+    if not tablo_ids:
+        return
+    async with Session() as session:
+        for tid in tablo_ids:
+            await session.execute(
+                pg_insert(Screen).values(
+                    tablo_id=tid, name=tid, is_online=False, created_at=func.now()
+                ).on_conflict_do_nothing(index_elements=["tablo_id"])
+            )
+            stmt = pg_insert(ScreenTemplate).values(
+                tablo_id=tid,
+                template_id=template_id,
+                assigned_at=func.now(),
+            ).on_conflict_do_update(
+                index_elements=["tablo_id"],
+                set_={"template_id": template_id, "assigned_at": func.now()},
+            )
+            await session.execute(stmt)
         await session.commit()
