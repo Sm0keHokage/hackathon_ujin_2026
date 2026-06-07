@@ -84,6 +84,7 @@ jobs:
           echo "OPENWEATHER_CITY=${{ secrets.OPENWEATHER_CITY }}" >> .env
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" >> .env
           echo "VITE_ADMIN_TOKEN=${{ secrets.VITE_ADMIN_TOKEN }}" >> .env
+          echo "ADMIN_TOKEN=${{ secrets.ADMIN_TOKEN }}" >> .env
       - name: Deploy
         run: |
           docker compose up -d --build
