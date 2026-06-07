@@ -4,7 +4,9 @@ import type { ComponentType, SVGProps } from "react";
 
 import { apiBaseUrl } from "./config";
 import { ScreensPage } from "./features/screens/ScreensPage";
+import { DashboardPreviewRoute } from "./features/templates/DashboardPreview";
 import { TemplatesPage } from "./features/templates/TemplatesPage";
+import { PREVIEW_ROUTE_PATH } from "./features/templates/previewStorage";
 
 type AdminPageId = "screens" | "templates" | "emergency";
 
@@ -37,6 +39,14 @@ const pages: AdminPage[] = [
 ];
 
 function App() {
+    if (window.location.pathname === PREVIEW_ROUTE_PATH) {
+        return <DashboardPreviewRoute />;
+    }
+
+    return <AdminApp />;
+}
+
+function AdminApp() {
     const [activePageId, setActivePageId] = useState<AdminPageId>("screens");
 
     const activePage = useMemo(

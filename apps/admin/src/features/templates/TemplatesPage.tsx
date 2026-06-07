@@ -1,10 +1,12 @@
-import { Edit2, LayoutTemplate, Plus, Play, RefreshCw, Trash2 } from "lucide-react";
+import { Edit2, Eye, Plus, Play, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
 import type { TemplateInfo } from "../../api";
-import { DEFAULT_TEMPLATE_CONFIG } from "./constants";
 import { AssignTemplateModal } from "./AssignTemplateModal";
+import { DashboardPreviewFrame } from "./DashboardPreview";
+import { DEFAULT_TEMPLATE_CONFIG } from "./constants";
+import { openTemplatePreview } from "./previewStorage";
 
 type TemplatesStatus = "idle" | "loading" | "ready";
 
@@ -89,6 +91,14 @@ export function TemplatesPage() {
         }
     };
 
+    const handlePreview = (template: TemplateInfo) => {
+        const previewWindow = openTemplatePreview(template);
+
+        if (!previewWindow) {
+            alert("Не удалось открыть окно предпросмотра. Проверьте настройки блокировки всплывающих окон.");
+        }
+    };
+
     return (
         <section className="admin-panel admin-panel_full">
             <div className="screens-toolbar">
@@ -132,14 +142,11 @@ export function TemplatesPage() {
                 {state.status !== "loading" && state.items.map((template) => (
                     <article className="template-card" key={template.id}>
                         <div className="template-card__preview">
-                            {template.preview_url ? (
-                                <img src={template.preview_url} alt={template.name} />
-                            ) : (
-                                <div className="template-card__no-preview">
-                                    <LayoutTemplate size={48} />
-                                    <span>Предпросмотр недоступен</span>
-                                </div>
-                            )}
+                            <DashboardPreviewFrame
+                                config={template.config_json}
+                                title={template.name}
+                                variant="thumbnail"
+                            />
                         </div>
                         <div className="template-card__content">
                             <div className="template-card__info">
@@ -147,6 +154,13 @@ export function TemplatesPage() {
                                 <p>ID: {template.id} • {template.config_json.tiles.length} тайлов</p>
                             </div>
                             <div className="template-card__actions">
+                                <button 
+                                    onClick={() => handlePreview(template)}
+                                    title="Открыть предпросмотр"
+                                    className="admin-icon-button"
+                                >
+                                    <Eye size={18} />
+                                </button>
                                 <button 
                                     onClick={() => setAssigningTemplate(template)}
                                     title="Назначить на экраны"

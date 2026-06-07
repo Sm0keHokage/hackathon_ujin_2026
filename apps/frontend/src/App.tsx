@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { DashboardScreen } from "@ujin-hack/shared";
+import type { DashboardConfig } from "@ujin-hack/shared";
 
 import { getDashboardConfig } from "./api/dashboard";
-import { DashboardScreen } from "./features/dashboard/DashboardScreen";
-import type { DashboardConfig } from "./features/dashboard/types";
 
 export default function App() {
     const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);

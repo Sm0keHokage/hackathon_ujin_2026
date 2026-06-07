@@ -1,6 +1,5 @@
 import { requestJson } from "./http";
 import type {
-    AdminTarget,
     ApiRequestOptions,
     EmergencyActivateRequest,
     EmergencyState,

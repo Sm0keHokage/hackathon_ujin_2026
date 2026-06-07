@@ -1,5 +1,5 @@
 import demoDashboardConfig from "../features/dashboard/mockDashboard.json";
-import type { DashboardConfig } from "../features/dashboard/types";
+import type { DashboardConfig } from "@ujin-hack/shared";
 
 const DEFAULT_TABLO_ID = "display";
 const REQUEST_TIMEOUT_MS = 5_000;
