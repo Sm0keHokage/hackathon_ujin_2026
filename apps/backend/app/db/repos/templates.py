@@ -6,6 +6,9 @@ from app.db.orm import Screen, ScreenTemplate, Template
 from app.db.session import SessionFactory
 
 
+_UNSET: object = object()
+
+
 async def list_all(Session: SessionFactory) -> list[Template]:
     async with Session() as session:
         result = await session.execute(select(Template).order_by(Template.id))
@@ -38,7 +41,7 @@ async def update(
     *,
     name: str | None = None,
     config_json: dict[str, Any] | None = None,
-    preview_url: str | None = None,
+    preview_url: str | None | object = _UNSET,
 ) -> Template | None:
     async with Session() as session:
         tpl = await session.get(Template, template_id)
@@ -48,8 +51,8 @@ async def update(
             tpl.name = name
         if config_json is not None:
             tpl.config_json = config_json
-        if preview_url is not None:
-            tpl.preview_url = preview_url
+        if preview_url is not _UNSET:
+            tpl.preview_url = preview_url  # type: ignore[assignment]
         tpl.updated_at = func.now()
         await session.commit()
         await session.refresh(tpl)

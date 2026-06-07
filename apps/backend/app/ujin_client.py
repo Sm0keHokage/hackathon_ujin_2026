@@ -48,22 +48,23 @@ def strip_html(value: str | None) -> str | None:
 class UjinClient:
     def __init__(self, settings: Settings) -> None:
         self._base_url = settings.ujin_api_base_url.rstrip("/")
-        self._referer = settings.ujin_referer
-        self._timeout = settings.ujin_request_timeout
         self._max_retries = settings.ujin_max_retries
         self._backoff = settings.ujin_retry_backoff
+        self._client = httpx.AsyncClient(
+            base_url=self._base_url,
+            timeout=settings.ujin_request_timeout,
+            headers={"Referer": settings.ujin_referer},
+        )
+
+    async def close(self) -> None:
+        await self._client.aclose()
 
     async def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         attempt = 0
         last_exc: Exception | None = None
         while attempt <= self._max_retries:
             try:
-                async with httpx.AsyncClient(
-                    base_url=self._base_url,
-                    timeout=self._timeout,
-                    headers={"Referer": self._referer},
-                ) as client:
-                    response = await client.get(path, params=params)
+                response = await self._client.get(path, params=params)
                 return self._parse(path, response)
             except (httpx.TimeoutException, UjinUpstreamError) as exc:
                 last_exc = exc
@@ -104,20 +105,23 @@ class UjinClient:
         payload = await self._get("/api/v1/complex/list", {"token": token})
         return payload.get("data", {}).get("items", [])
 
-    async def buildings(self, token: str) -> list[BuildingSummary]:
+    async def buildings_and_raw(
+        self, token: str
+    ) -> tuple[list[BuildingSummary], list[dict[str, Any]]]:
         payload = await self._get(
             "/api/v1/buildings/get-list-crm",
             {"token": token, "per_page": 1000, "page": 1},
         )
         items = payload.get("data", {}).get("buildings", [])
-        return [self._building_summary(item) for item in items]
+        return [self._building_summary(item) for item in items], items
+
+    async def buildings(self, token: str) -> list[BuildingSummary]:
+        summaries, _ = await self.buildings_and_raw(token)
+        return summaries
 
     async def buildings_raw(self, token: str) -> list[dict[str, Any]]:
-        payload = await self._get(
-            "/api/v1/buildings/get-list-crm",
-            {"token": token, "per_page": 1000, "page": 1},
-        )
-        return payload.get("data", {}).get("buildings", [])
+        _, raw = await self.buildings_and_raw(token)
+        return raw
 
     async def parking(self, token: str) -> dict[int, ResourceSummary]:
         payload = await self._get("/api/v1/parking/list", {"token": token})

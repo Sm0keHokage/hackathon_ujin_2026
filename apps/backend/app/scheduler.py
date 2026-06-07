@@ -36,21 +36,31 @@ async def _broadcast_overview(ws_manager: ConnectionManager, cache: dict[str, An
         await ws_manager.broadcast_all({"type": "overview", "data": overview.model_dump()})
 
 
+async def _push_dashboard_to(
+    Session: SessionFactory,
+    ws_manager: ConnectionManager,
+    cache: dict[str, Any],
+    tablo_id: str,
+) -> None:
+    try:
+        cfg = await build_dashboard_config(Session, cache, tablo_id)
+        await ws_manager.send_to(
+            tablo_id,
+            {"type": "dashboard", "data": cfg.model_dump(mode="json", by_alias=True)},
+        )
+    except Exception as exc:
+        logger.warning("dashboard push failed for %s: %s", tablo_id, exc)
+
+
 async def _broadcast_dashboard(
     Session: SessionFactory,
     ws_manager: ConnectionManager,
     cache: dict[str, Any],
 ) -> None:
-    """Шлём дашборд каждому подключённому tablo_id (у каждого может быть свой шаблон)."""
-    for tablo_id in ws_manager.connected_ids:
-        try:
-            cfg = await build_dashboard_config(Session, cache, tablo_id)
-            await ws_manager.send_to(
-                tablo_id,
-                {"type": "dashboard", "data": cfg.model_dump(mode="json", by_alias=True)},
-            )
-        except Exception as exc:
-            logger.warning("dashboard push failed for %s: %s", tablo_id, exc)
+    ids = ws_manager.connected_ids
+    if not ids:
+        return
+    await asyncio.gather(*[_push_dashboard_to(Session, ws_manager, cache, tid) for tid in ids])
 
 
 def _scale_summary(total: int, kind: str, building_id: int) -> ResourceSummary:
@@ -171,10 +181,9 @@ async def sync_daily(
 ) -> None:
     t0 = time.monotonic()
     try:
-        complexes, buildings, raw = await asyncio.gather(
+        complexes, (buildings, raw) = await asyncio.gather(
             ujin_client.complexes(token),
-            ujin_client.buildings(token),
-            ujin_client.buildings_raw(token),
+            ujin_client.buildings_and_raw(token),
         )
         cache["complexes"] = complexes
         cache["buildings"] = buildings
@@ -243,7 +252,7 @@ async def _loop_emergency_auto_reset(
             if state.log_id is not None:
                 await emergency_log_repo.log_deactivation(Session, state.log_id)
             new_state = emergency_store.deactivate()
-            await ws_manager.broadcast_all({"type": "emergency", "data": new_state.model_dump()})
+            await ws_manager.broadcast_all({"type": "emergency", "data": new_state.model_dump(mode="json")})
             logger.info("Emergency auto-reset triggered")
 
 
@@ -258,50 +267,52 @@ async def run_scheduler(
 ) -> None:
     ujin_client = UjinClient(settings)
     token = settings.ujin_token
-
-    await sync_daily(Session, ujin_client, ws_manager, cache, token, crypto)
-    await asyncio.gather(
-        sync_medium(Session, ujin_client, ws_manager, cache, token),
-        sync_fast(Session, ujin_client, ws_manager, cache, settings),
-    )
-
-    async def loop_fast() -> None:
-        while True:
-            await asyncio.sleep(settings.poll_interval_fast)
-            await sync_fast(Session, ujin_client, ws_manager, cache, settings)
-
-    async def loop_medium() -> None:
-        while True:
-            await asyncio.sleep(settings.poll_interval_medium)
-            await sync_medium(Session, ujin_client, ws_manager, cache, token)
-
-    async def loop_daily() -> None:
-        while True:
-            await asyncio.sleep(settings.poll_interval_daily)
-            await sync_daily(Session, ujin_client, ws_manager, cache, token, crypto)
-
-    coroutines = [
-        loop_fast(),
-        loop_medium(),
-        loop_daily(),
-        _loop_emergency_auto_reset(Session, emergency_store, ws_manager),
-    ]
-
-    if weather_client is not None:
-        weather_kwargs = dict(
-            Session=Session,
-            weather_client=weather_client,
-            ws_manager=ws_manager,
-            cache=cache,
-            fallback_address=settings.openweather_address,
+    try:
+        await sync_daily(Session, ujin_client, ws_manager, cache, token, crypto)
+        await asyncio.gather(
+            sync_medium(Session, ujin_client, ws_manager, cache, token),
+            sync_fast(Session, ujin_client, ws_manager, cache, settings),
         )
-        await sync_weather(**weather_kwargs)
 
-        async def loop_weather() -> None:
+        async def loop_fast() -> None:
             while True:
-                await asyncio.sleep(settings.weather_poll_interval)
-                await sync_weather(**weather_kwargs)
+                await asyncio.sleep(settings.poll_interval_fast)
+                await sync_fast(Session, ujin_client, ws_manager, cache, settings)
 
-        coroutines.append(loop_weather())
+        async def loop_medium() -> None:
+            while True:
+                await asyncio.sleep(settings.poll_interval_medium)
+                await sync_medium(Session, ujin_client, ws_manager, cache, token)
 
-    await asyncio.gather(*coroutines)
+        async def loop_daily() -> None:
+            while True:
+                await asyncio.sleep(settings.poll_interval_daily)
+                await sync_daily(Session, ujin_client, ws_manager, cache, token, crypto)
+
+        coroutines = [
+            loop_fast(),
+            loop_medium(),
+            loop_daily(),
+            _loop_emergency_auto_reset(Session, emergency_store, ws_manager),
+        ]
+
+        if weather_client is not None:
+            weather_kwargs = dict(
+                Session=Session,
+                weather_client=weather_client,
+                ws_manager=ws_manager,
+                cache=cache,
+                fallback_address=settings.openweather_address,
+            )
+            await sync_weather(**weather_kwargs)
+
+            async def loop_weather() -> None:
+                while True:
+                    await asyncio.sleep(settings.weather_poll_interval)
+                    await sync_weather(**weather_kwargs)
+
+            coroutines.append(loop_weather())
+
+        await asyncio.gather(*coroutines)
+    finally:
+        await ujin_client.close()

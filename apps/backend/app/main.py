@@ -1,4 +1,5 @@
 import asyncio
+import hmac
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -153,7 +154,7 @@ def require_admin(
     expected = request.app.state.settings.admin_token
     if not expected:
         raise HTTPException(status_code=503, detail="Admin token is not configured on the server")
-    if x_admin_token != expected:
+    if not hmac.compare_digest(x_admin_token or "", expected):
         raise HTTPException(status_code=401, detail="Invalid admin token")
 
 
@@ -188,7 +189,7 @@ async def websocket_lobby(
     except Exception as exc:
         logger.warning("Could not build dashboard for %s: %s", tablo_id, exc)
 
-    await ws_manager.send_to(tablo_id, {"type": "emergency", "data": emergency_store.get().model_dump()})
+    await ws_manager.send_to(tablo_id, {"type": "emergency", "data": emergency_store.get().model_dump(mode="json")})
 
     weather_payload: dict = {}
     if cache.get("weather_current"):
@@ -307,7 +308,7 @@ async def list_screens(request: Request) -> list[ScreenInfo]:
     return await screens_repo.get_all(request.app.state.Session)
 
 
-@app.get("/api/sync/status", response_model=list[SyncStatus])
+@app.get("/api/sync/status", response_model=list[SyncStatus], dependencies=[Depends(require_admin)])
 async def sync_status(request: Request) -> list[SyncStatus]:
     return await sync_log_repo.get_latest_per_source(request.app.state.Session)
 
@@ -365,12 +366,17 @@ async def update_template(
     if payload.config_json is not None:
         config_json = payload.config_json.model_dump(mode="json", by_alias=True, exclude_none=True)
 
+    preview_url_kwarg: dict = (
+        {"preview_url": payload.preview_url}
+        if "preview_url" in payload.model_fields_set
+        else {}
+    )
     tpl = await templates_repo.update(
         request.app.state.Session,
         template_id,
         name=payload.name,
         config_json=config_json,
-        preview_url=payload.preview_url,
+        **preview_url_kwarg,
     )
     if tpl is None:
         raise HTTPException(status_code=404, detail="Template not found")
