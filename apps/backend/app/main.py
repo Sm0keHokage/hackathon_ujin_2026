@@ -302,7 +302,7 @@ async def deactivate_emergency(request: Request) -> EmergencyState:
     return state
 
 
-@app.get("/api/screens", response_model=list[ScreenInfo])
+@app.get("/api/screens", response_model=list[ScreenInfo], dependencies=[Depends(require_admin)])
 async def list_screens(request: Request) -> list[ScreenInfo]:
     return await screens_repo.get_all(request.app.state.Session)
 
@@ -323,13 +323,13 @@ def _template_to_info(tpl) -> TemplateInfo:
     )
 
 
-@app.get("/api/templates", response_model=list[TemplateInfo])
+@app.get("/api/templates", response_model=list[TemplateInfo], dependencies=[Depends(require_admin)])
 async def list_templates(request: Request) -> list[TemplateInfo]:
     tpls = await templates_repo.list_all(request.app.state.Session)
     return [_template_to_info(t) for t in tpls]
 
 
-@app.get("/api/templates/{template_id}", response_model=TemplateInfo)
+@app.get("/api/templates/{template_id}", response_model=TemplateInfo, dependencies=[Depends(require_admin)])
 async def get_template(template_id: int, request: Request) -> TemplateInfo:
     tpl = await templates_repo.get(request.app.state.Session, template_id)
     if tpl is None:
@@ -496,7 +496,7 @@ async def get_weather_location(request: Request) -> dict:
     return {"address": address}
 
 
-@app.put("/api/weather/location")
+@app.put("/api/weather/location", dependencies=[Depends(require_admin)])
 async def set_weather_location(
     request: Request,
     address: str = Body(..., embed=True),
