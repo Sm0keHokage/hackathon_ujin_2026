@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.env
+**/.env
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+*.tsbuildinfo
+npm-debug.log*

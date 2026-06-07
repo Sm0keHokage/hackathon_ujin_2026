@@ -58,7 +58,7 @@ function buildHeaders(options: RequestJsonOptions) {
         headers.set("Content-Type", "application/json");
     }
 
-    if (options.admin && adminApiConfig.adminToken) {
+    if (adminApiConfig.adminToken) {
         headers.set("X-Admin-Token", adminApiConfig.adminToken);
     }
 
