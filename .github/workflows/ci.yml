@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '26'
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
@@ -22,6 +22,23 @@ jobs:
         run: npm run lint:frontend
       - name: Build
         run: npm run build:frontend
+
+  admin:
+    name: Admin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint:admin
+      - name: Build
+        run: npm run build:admin
 
   backend:
     name: Backend CI
@@ -42,7 +59,7 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: [frontend, backend]
+    needs: [frontend, admin, backend]
     if: github.ref == 'refs/heads/dev'
     runs-on: self-hosted
     steps:
@@ -66,6 +83,7 @@ jobs:
           echo "OPENWEATHER_API_KEY=${{ secrets.OPENWEATHER_API_KEY }}" >> .env
           echo "OPENWEATHER_CITY=${{ secrets.OPENWEATHER_CITY }}" >> .env
           echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" >> .env
+          echo "VITE_ADMIN_TOKEN=${{ secrets.VITE_ADMIN_TOKEN }}" >> .env
       - name: Deploy
         run: |
           docker compose up -d --build
