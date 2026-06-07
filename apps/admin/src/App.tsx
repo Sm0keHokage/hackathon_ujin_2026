@@ -4,6 +4,7 @@ import type { ComponentType, SVGProps } from "react";
 
 import { apiBaseUrl } from "./config";
 import { ScreensPage } from "./features/screens/ScreensPage";
+import { TemplatesPage } from "./features/templates/TemplatesPage";
 
 type AdminPageId = "screens" | "templates" | "emergency";
 
@@ -102,13 +103,7 @@ interface AdminPageContentProps {
 
 function AdminPageContent({ pageId }: AdminPageContentProps) {
     if (pageId === "templates") {
-        return (
-            <section className="admin-panel">
-                <div className="admin-panel__heading">
-                    <h2>Шаблоны</h2>
-                </div>
-            </section>
-        );
+        return <TemplatesPage />;
     }
 
     if (pageId === "emergency") {
