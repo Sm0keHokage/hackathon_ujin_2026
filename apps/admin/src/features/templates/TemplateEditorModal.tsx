@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { adminApi, isApiError } from "../../api";
+import { useModalDismiss } from "../../ui/useModalDismiss";
 import type {
     ClockTile,
     DashboardSeverity,
@@ -76,6 +77,8 @@ export function TemplateEditorModal({
     const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    useModalDismiss(() => { if (!isSaving) onClose(); });
 
     const selectedSlot = useMemo(
         () => draftConfig.tiles.find((slot) => slot.id === selectedSlotId) ?? null,
@@ -181,14 +184,23 @@ export function TemplateEditorModal({
     };
 
     return (
-        <div className="admin-modal-overlay">
-            <div className="admin-modal admin-modal_editor">
+        <div
+            className="admin-modal-overlay"
+            onMouseDown={(event) => { if (event.target === event.currentTarget && !isSaving) onClose(); }}
+            role="presentation"
+        >
+            <div
+                aria-modal="true"
+                className="admin-modal admin-modal_editor"
+                onMouseDown={(event) => event.stopPropagation()}
+                role="dialog"
+            >
                 <header className="admin-modal__header">
                     <div>
                         <h2>{isCreateMode ? "Создание шаблона" : "Редактирование шаблона"}</h2>
                         <p>{isCreateMode ? "Новый шаблон дашборда" : template.name}</p>
                     </div>
-                    <button className="admin-modal__close" onClick={onClose} type="button">
+                    <button aria-label="Закрыть" className="admin-modal__close" onClick={onClose} type="button">
                         <X size={20} />
                     </button>
                 </header>

@@ -33,7 +33,9 @@ logger = logging.getLogger(__name__)
 async def _broadcast_overview(ws_manager: ConnectionManager, cache: dict[str, Any]) -> None:
     overview = build_overview_from_cache(cache)
     if overview is not None:
-        await ws_manager.broadcast_all({"type": "overview", "data": overview.model_dump()})
+        await ws_manager.broadcast_all(
+            {"type": "overview", "data": overview.model_dump(mode="json")},
+        )
 
 
 async def _push_dashboard_to(

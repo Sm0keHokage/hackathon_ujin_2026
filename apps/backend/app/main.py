@@ -178,7 +178,10 @@ async def websocket_lobby(
 
     overview = build_overview_from_cache(cache)
     if overview:
-        await ws_manager.send_to(tablo_id, {"type": "overview", "data": overview.model_dump()})
+        await ws_manager.send_to(
+            tablo_id,
+            {"type": "overview", "data": overview.model_dump(mode="json")},
+        )
 
     try:
         dashboard = await build_dashboard_config(Session, cache, tablo_id)
@@ -201,9 +204,16 @@ async def websocket_lobby(
     if weather_payload:
         await ws_manager.send_to(tablo_id, {"type": "weather", "data": weather_payload})
 
+    last_touch = 0.0
     try:
         while True:
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+            if message == "ping":
+                await ws_manager.send_to(tablo_id, {"type": "pong"})
+                now = asyncio.get_event_loop().time()
+                if now - last_touch >= 20.0:
+                    last_touch = now
+                    await screens_repo.touch_last_seen(Session, tablo_id)
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:

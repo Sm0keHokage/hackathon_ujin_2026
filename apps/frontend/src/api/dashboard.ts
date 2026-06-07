@@ -1,10 +1,12 @@
-import demoDashboardConfig from "../features/dashboard/mockDashboard.json";
 import type { DashboardConfig, DashboardEmergency } from "@ujin-hack/shared";
 
 const DASHBOARD_SESSION_STORAGE_KEY = "ujin-dashboard-tablo-id";
 const REQUEST_TIMEOUT_MS = 5_000;
-const DEFAULT_RECONNECT_DELAY_MS = 3_000;
 const HEARTBEAT_INTERVAL_MS = 25_000;
+const SERVER_SILENCE_TIMEOUT_MS = 60_000;
+const RECONNECT_INITIAL_DELAY_MS = 3_000;
+const RECONNECT_MAX_DELAY_MS = 60_000;
+const RECONNECT_JITTER = 0.2;
 
 export interface DashboardSession {
     tabloId: string;
@@ -12,9 +14,50 @@ export interface DashboardSession {
 
 export type DashboardConnectionStatus = "connecting" | "open" | "closed" | "fallback";
 
+export interface DashboardWeatherCurrent {
+    temp: number;
+    feels_like: number;
+    description: string;
+    icon: string;
+    icon_url: string;
+    location: string;
+    dt: string;
+    humidity: number;
+    wind_speed: number;
+}
+
+export interface DashboardWeatherHourlyItem {
+    dt: string;
+    hour: string;
+    temp: number;
+    icon: string;
+    icon_url: string;
+    description: string;
+    pop: number;
+}
+
+export interface DashboardWeatherDailyItem {
+    date: string;
+    day_name: string;
+    temp_min: number;
+    temp_max: number;
+    icon: string;
+    icon_url: string;
+    description: string;
+    pop_max: number;
+}
+
+export interface DashboardWeather {
+    current?: DashboardWeatherCurrent;
+    hourly?: { items: DashboardWeatherHourlyItem[] };
+    daily?: { items: DashboardWeatherDailyItem[] };
+}
+
 export interface DashboardWebSocketHandlers {
     onDashboard: (config: DashboardConfig) => void;
     onEmergency: (emergency: DashboardEmergency) => void;
+    onOverview?: (data: unknown) => void;
+    onWeather?: (weather: DashboardWeather) => void;
     onStatusChange?: (status: DashboardConnectionStatus) => void;
 }
 
@@ -34,12 +77,7 @@ export function createDashboardSession(): DashboardSession {
 }
 
 export async function getDashboardConfig(session: DashboardSession): Promise<DashboardConfig> {
-    try {
-        return await fetchDashboardConfig(session);
-    } catch (error) {
-        console.warn("Dashboard API is unavailable, using demo config.", error);
-        return demoDashboardConfig as DashboardConfig;
-    }
+    return fetchDashboardConfig(session);
 }
 
 export function connectDashboardWebSocket(
@@ -48,8 +86,11 @@ export function connectDashboardWebSocket(
 ): DashboardConnection {
     let reconnectTimeoutId: number | undefined;
     let heartbeatIntervalId: number | undefined;
+    let silenceCheckIntervalId: number | undefined;
     let socket: WebSocket | null = null;
     let closedByClient = false;
+    let reconnectAttempt = 0;
+    let lastServerMessageAt = 0;
 
     const stopHeartbeat = () => {
         if (heartbeatIntervalId !== undefined) {
@@ -58,32 +99,78 @@ export function connectDashboardWebSocket(
         }
     };
 
+    const stopSilenceCheck = () => {
+        if (silenceCheckIntervalId !== undefined) {
+            window.clearInterval(silenceCheckIntervalId);
+            silenceCheckIntervalId = undefined;
+        }
+    };
+
     const startHeartbeat = () => {
         stopHeartbeat();
 
         heartbeatIntervalId = window.setInterval(() => {
             if (socket?.readyState === WebSocket.OPEN) {
-                socket.send("ping");
+                try {
+                    socket.send("ping");
+                } catch {
+                    socket.close();
+                }
             }
         }, HEARTBEAT_INTERVAL_MS);
+    };
+
+    const startSilenceCheck = () => {
+        stopSilenceCheck();
+
+        silenceCheckIntervalId = window.setInterval(() => {
+            if (socket?.readyState !== WebSocket.OPEN) return;
+            if (Date.now() - lastServerMessageAt > SERVER_SILENCE_TIMEOUT_MS) {
+                console.warn("Dashboard WS silent too long, forcing reconnect");
+                socket.close(4000, "silence-timeout");
+            }
+        }, 10_000);
+    };
+
+    const scheduleReconnect = () => {
+        const base = Math.min(
+            RECONNECT_INITIAL_DELAY_MS * 2 ** reconnectAttempt,
+            RECONNECT_MAX_DELAY_MS,
+        );
+        const jitterRange = base * RECONNECT_JITTER;
+        const delay = base + (Math.random() * 2 - 1) * jitterRange;
+        reconnectAttempt += 1;
+        reconnectTimeoutId = window.setTimeout(connect, Math.max(500, delay));
     };
 
     const connect = () => {
         handlers.onStatusChange?.("connecting");
 
-        socket = new WebSocket(getDashboardWebSocketUrl(session));
+        try {
+            socket = new WebSocket(getDashboardWebSocketUrl(session));
+        } catch (error) {
+            console.warn("Dashboard WS construction failed", error);
+            handlers.onStatusChange?.("fallback");
+            scheduleReconnect();
+            return;
+        }
 
         socket.addEventListener("open", () => {
+            reconnectAttempt = 0;
+            lastServerMessageAt = Date.now();
             startHeartbeat();
+            startSilenceCheck();
             handlers.onStatusChange?.("open");
         });
 
         socket.addEventListener("message", (event) => {
+            lastServerMessageAt = Date.now();
             handleDashboardSocketMessage(event.data, handlers);
         });
 
         socket.addEventListener("close", () => {
             stopHeartbeat();
+            stopSilenceCheck();
             socket = null;
 
             if (closedByClient) {
@@ -92,7 +179,7 @@ export function connectDashboardWebSocket(
             }
 
             handlers.onStatusChange?.("fallback");
-            reconnectTimeoutId = window.setTimeout(connect, DEFAULT_RECONNECT_DELAY_MS);
+            scheduleReconnect();
         });
 
         socket.addEventListener("error", () => {
@@ -111,6 +198,7 @@ export function connectDashboardWebSocket(
             }
 
             stopHeartbeat();
+            stopSilenceCheck();
             socket?.close();
             socket = null;
         },
@@ -181,13 +269,23 @@ function handleDashboardSocketMessage(
         return;
     }
 
-    if (message.type === "dashboard") {
-        handlers.onDashboard(message.data as DashboardConfig);
-        return;
-    }
-
-    if (message.type === "emergency") {
-        handlers.onEmergency(normalizeEmergencyState(message.data));
+    switch (message.type) {
+        case "dashboard":
+            handlers.onDashboard(message.data as DashboardConfig);
+            return;
+        case "emergency":
+            handlers.onEmergency(normalizeEmergencyState(message.data));
+            return;
+        case "overview":
+            handlers.onOverview?.(message.data);
+            return;
+        case "weather":
+            if (isRecord(message.data)) {
+                handlers.onWeather?.(message.data as DashboardWeather);
+            }
+            return;
+        case "pong":
+            return;
     }
 }
 
@@ -228,6 +326,7 @@ function resolveTabloId() {
     const urlTabloId = getUrlTabloId();
 
     if (urlTabloId) {
+        rememberTabloId(urlTabloId);
         return urlTabloId;
     }
 
@@ -237,16 +336,40 @@ function resolveTabloId() {
         return envTabloId;
     }
 
-    const existingSessionTabloId = window.sessionStorage.getItem(DASHBOARD_SESSION_STORAGE_KEY);
-
-    if (existingSessionTabloId) {
-        return existingSessionTabloId;
+    const persisted = readPersistedTabloId();
+    if (persisted) {
+        return persisted;
     }
 
     const nextTabloId = createSessionTabloId();
-    window.sessionStorage.setItem(DASHBOARD_SESSION_STORAGE_KEY, nextTabloId);
-
+    rememberTabloId(nextTabloId);
     return nextTabloId;
+}
+
+function readPersistedTabloId(): string | null {
+    try {
+        const fromLocal = window.localStorage.getItem(DASHBOARD_SESSION_STORAGE_KEY);
+        if (fromLocal) return fromLocal;
+    } catch (_localStorageError) {
+        void _localStorageError;
+    }
+    try {
+        return window.sessionStorage.getItem(DASHBOARD_SESSION_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+function rememberTabloId(id: string) {
+    try {
+        window.localStorage.setItem(DASHBOARD_SESSION_STORAGE_KEY, id);
+    } catch {
+        try {
+            window.sessionStorage.setItem(DASHBOARD_SESSION_STORAGE_KEY, id);
+        } catch (storageError) {
+            void storageError;
+        }
+    }
 }
 
 function getUrlTabloId() {

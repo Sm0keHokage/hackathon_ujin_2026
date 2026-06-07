@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
 import type { AdminTarget, AdminTargetMode, ScreenInfo, TemplateInfo } from "../../api";
+import { useModalDismiss } from "../../ui/useModalDismiss";
 
 interface AssignTemplateModalProps {
     template: TemplateInfo;
@@ -19,6 +20,8 @@ export function AssignTemplateModal({ template, onClose, onSuccess }: AssignTemp
     const [mode, setMode] = useState<AdminTargetMode>("all");
     const [selectedTabloIds, setSelectedTabloIds] = useState<string[]>([]);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+
+    useModalDismiss(onClose);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -88,15 +91,31 @@ export function AssignTemplateModal({ template, onClose, onSuccess }: AssignTemp
         }
     };
 
+    const canSubmit =
+        !isSubmitting
+        && !isLoading
+        && !(mode === "screens" && selectedTabloIds.length === 0)
+        && !(mode === "groups" && selectedGroups.length === 0);
+
     return (
-        <div className="admin-modal-overlay">
-            <div className="admin-modal">
+        <div
+            className="admin-modal-overlay"
+            onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
+            role="presentation"
+        >
+            <div
+                aria-labelledby="assign-template-modal-title"
+                aria-modal="true"
+                className="admin-modal"
+                onMouseDown={(event) => event.stopPropagation()}
+                role="dialog"
+            >
                 <header className="admin-modal__header">
                     <div>
-                        <h2>Назначить шаблон</h2>
-                        <p>Выбор цели для "{template.name}"</p>
+                        <h2 id="assign-template-modal-title">Назначить шаблон</h2>
+                        <p>Выбор цели для «{template.name}»</p>
                     </div>
-                    <button onClick={onClose} className="admin-modal__close">
+                    <button aria-label="Закрыть" className="admin-modal__close" onClick={onClose} type="button">
                         <X size={20} />
                     </button>
                 </header>
@@ -179,13 +198,14 @@ export function AssignTemplateModal({ template, onClose, onSuccess }: AssignTemp
                 </div>
 
                 <footer className="admin-modal__footer">
-                    <button onClick={onClose} className="admin-button admin-button_secondary">
+                    <button className="admin-button admin-button_secondary" onClick={onClose} type="button">
                         Отмена
                     </button>
-                    <button 
-                        onClick={handleSubmit} 
+                    <button
                         className="admin-button admin-button_primary"
-                        disabled={isSubmitting || isLoading}
+                        disabled={!canSubmit}
+                        onClick={handleSubmit}
+                        type="button"
                     >
                         {isSubmitting ? "Отправка..." : "Применить"}
                     </button>

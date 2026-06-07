@@ -440,3 +440,146 @@ body {
     pointer-events: none;
     width: 100%;
 }
+.dashboard-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
+
+.dashboard-loader small {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.6em;
+    max-width: 32ch;
+}
+
+.dashboard-connection-badge {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+    z-index: 9999;
+    animation: dashboard-connection-badge-in 0.2s ease-out;
+}
+
+.dashboard-connection-badge_connecting {
+    background: rgba(99, 102, 241, 0.92);
+}
+
+.dashboard-connection-badge_fallback {
+    background: rgba(220, 38, 38, 0.92);
+}
+
+@keyframes dashboard-connection-badge-in {
+    from { transform: translateY(-8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.weather-overlay {
+    position: fixed;
+    top: calc(var(--dashboard-emergency-height, 0px) + 24px);
+    right: 24px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(12px);
+    color: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
+    min-width: 200px;
+    max-width: 320px;
+    transition: top 0.25s ease;
+    pointer-events: none;
+}
+
+.weather-overlay__current {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.weather-overlay__icon {
+    width: 64px;
+    height: 64px;
+    flex: 0 0 64px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+}
+
+.weather-overlay__current-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.weather-overlay__temp {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.weather-overlay__description {
+    font-size: 14px;
+    opacity: 0.85;
+    text-transform: lowercase;
+}
+
+.weather-overlay__meta {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.weather-overlay__location {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.weather-overlay__hourly {
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 10px;
+}
+
+.weather-overlay__hour {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    flex: 1;
+}
+
+.weather-overlay__hour img {
+    width: 32px;
+    height: 32px;
+}
+
+.weather-overlay__hour-label {
+    opacity: 0.7;
+}
+
+.weather-overlay__hour-temp {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.weather-overlay__hour-pop {
+    font-size: 10px;
+    color: #93c5fd;
+}

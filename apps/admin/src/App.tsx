@@ -1,5 +1,5 @@
 import { AlertTriangle, LayoutTemplate, Monitor, Settings } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
 import { apiBaseUrl } from "./config";
@@ -47,13 +47,37 @@ function App() {
     return <AdminApp />;
 }
 
+const PAGE_IDS: AdminPageId[] = pages.map((page) => page.id);
+
+function readPageFromUrl(): AdminPageId {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return PAGE_IDS.includes(tab as AdminPageId) ? (tab as AdminPageId) : "screens";
+}
+
 function AdminApp() {
-    const [activePageId, setActivePageId] = useState<AdminPageId>("screens");
+    const [activePageId, setActivePageId] = useState<AdminPageId>(() => readPageFromUrl());
 
     const activePage = useMemo(
         () => pages.find((page) => page.id === activePageId) ?? pages[0],
         [activePageId],
     );
+
+    const handleNavigate = useCallback((id: AdminPageId) => {
+        setActivePageId(id);
+        const url = new URL(window.location.href);
+        if (id === "screens") {
+            url.searchParams.delete("tab");
+        } else {
+            url.searchParams.set("tab", id);
+        }
+        window.history.pushState({}, "", url);
+    }, []);
+
+    useEffect(() => {
+        const handlePopState = () => setActivePageId(readPageFromUrl());
+        window.addEventListener("popstate", handlePopState);
+        return () => window.removeEventListener("popstate", handlePopState);
+    }, []);
 
     return (
         <main className="admin-shell">
@@ -73,11 +97,12 @@ function AdminApp() {
 
                         return (
                             <button
+                                aria-current={isActive ? "page" : undefined}
                                 className={`admin-navigation__item${
                                     isActive ? " admin-navigation__item_active" : ""
                                 }`}
                                 key={page.id}
-                                onClick={() => setActivePageId(page.id)}
+                                onClick={() => handleNavigate(page.id)}
                                 type="button"
                             >
                                 <Icon aria-hidden="true" />

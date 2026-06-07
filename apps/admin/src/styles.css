@@ -1477,3 +1477,58 @@ textarea {
 .emergency-form .admin-toolbar-actions {
     justify-content: flex-end;
 }
+
+.admin-button_danger {
+    background: #e35468;
+    color: #ffffff;
+    border-color: transparent;
+}
+
+.admin-button_danger:hover:not(:disabled) {
+    background: #d23a4f;
+}
+
+.admin-modal_compact {
+    max-width: 480px;
+    width: 100%;
+}
+
+.admin-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #1f2933;
+    color: #ffffff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.25);
+    max-width: 360px;
+    z-index: 1100;
+    animation: admin-toast-in 0.18s ease-out;
+}
+
+.admin-toast_success {
+    background: #16a34a;
+}
+
+.admin-toast_error {
+    background: #dc2626;
+}
+
+.admin-toast__close {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+
+@keyframes admin-toast-in {
+    from { transform: translateY(8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}

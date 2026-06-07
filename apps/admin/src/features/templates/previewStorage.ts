@@ -11,6 +11,8 @@ export interface StoredPreview {
 }
 
 export function openTemplatePreview(template: TemplateInfo) {
+    cleanupOldPreviews();
+
     const previewId = `${template.id}-${Date.now()}`;
     const payload: StoredPreview = {
         templateId: template.id,
@@ -26,8 +28,24 @@ export function openTemplatePreview(template: TemplateInfo) {
     return window.open(
         url.toString(),
         "_blank",
-        "popup=yes,width=560,height=920,noopener=false",
+        "popup=yes,width=560,height=920,noopener=yes,noreferrer=yes",
     );
+}
+
+const PREVIEW_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function cleanupOldPreviews() {
+    const now = Date.now();
+    const keysToRemove: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (!key || !key.startsWith(`${PREVIEW_STORAGE_PREFIX}:`)) continue;
+        const timestamp = Number(key.split("-").pop());
+        if (Number.isFinite(timestamp) && now - timestamp > PREVIEW_MAX_AGE_MS) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
 }
 
 export function readPreviewPayload() {

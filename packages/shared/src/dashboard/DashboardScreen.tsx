@@ -412,7 +412,7 @@ function useCurrentDate() {
     useEffect(() => {
         const timerId = window.setInterval(() => {
             setDate(new Date());
-        }, 30_000);
+        }, 5_000);
 
         return () => {
             window.clearInterval(timerId);
@@ -422,19 +422,22 @@ function useCurrentDate() {
     return date;
 }
 
-function formatDate(value: string) {
-    return new Intl.DateTimeFormat("ru-RU", {
-        day: "numeric",
-        month: "long",
-    }).format(new Date(value));
-}
-
-function formatUpdatedAt(value: string) {
-    return new Intl.DateTimeFormat("ru-RU", {
+function DashboardHeaderClock({ timezone }: { timezone?: string }) {
+    const currentDate = useCurrentDate();
+    const formatter = new Intl.DateTimeFormat("ru-RU", {
+        timeZone: timezone,
         day: "2-digit",
         month: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
+    });
+    return <span>{formatter.format(currentDate)}</span>;
+}
+
+function formatDate(value: string) {
+    return new Intl.DateTimeFormat("ru-RU", {
+        day: "numeric",
+        month: "long",
     }).format(new Date(value));
 }
 
@@ -550,7 +553,7 @@ export function DashboardScreen({ config }: DashboardScreenProps) {
                     </div>
                     <div className="dashboard-updated">
                         <CalendarDays size={22} aria-hidden="true" />
-                        <span>{formatUpdatedAt(config.updatedAt)}</span>
+                        <DashboardHeaderClock />
                     </div>
                 </header>
 

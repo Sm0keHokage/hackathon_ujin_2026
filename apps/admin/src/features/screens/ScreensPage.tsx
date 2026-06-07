@@ -3,13 +3,18 @@ import { useEffect, useMemo, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
 import type { ScreenInfo } from "../../api";
-import { mockScreens } from "./mockScreens";
 
 const ALL_GROUPS = "__all__";
 const WITHOUT_GROUP = "__without_group__";
 
 type ScreensSource = "api" | "mock";
 type ScreensStatus = "idle" | "loading" | "ready";
+
+async function loadMockScreens(): Promise<ScreenInfo[]> {
+    if (!import.meta.env.DEV) return [];
+    const module = await import("./mockScreens");
+    return module.mockScreens;
+}
 
 interface ScreensState {
     items: ScreenInfo[];
@@ -49,9 +54,10 @@ export function ScreensPage() {
                 return;
             }
 
+            const fallback = await loadMockScreens();
             setScreensState({
-                items: mockScreens,
-                source: "mock",
+                items: fallback,
+                source: fallback.length > 0 ? "mock" : "api",
                 status: "ready",
                 error: resolveLoadError(error),
             });

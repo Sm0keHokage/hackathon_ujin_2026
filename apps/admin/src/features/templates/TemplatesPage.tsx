@@ -1,8 +1,10 @@
 import { Edit2, Eye, Plus, Play, RefreshCw, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { adminApi, isApiError } from "../../api";
 import type { DashboardTemplateConfig, TemplateInfo } from "../../api";
+import { ConfirmModal } from "../../ui/ConfirmModal";
+import { Toast } from "../../ui/Toast";
 import { AssignTemplateModal } from "./AssignTemplateModal";
 import { DashboardPreviewFrame } from "./DashboardPreview";
 import { DEFAULT_TEMPLATE_CONFIG } from "./constants";
@@ -27,11 +29,19 @@ export function TemplatesPage() {
     const [isCreateEditorOpen, setIsCreateEditorOpen] = useState(false);
     const [assigningTemplate, setAssigningTemplate] = useState<TemplateInfo | null>(null);
     const [editingTemplate, setEditingTemplate] = useState<TemplateInfo | null>(null);
+    const [deleteDialog, setDeleteDialog] = useState<{
+        template: TemplateInfo;
+        isSubmitting: boolean;
+        error: string | null;
+    } | null>(null);
+    const [toast, setToast] = useState<{ message: string; tone: "info" | "success" | "error" } | null>(null);
+    const abortRef = useRef<AbortController | null>(null);
 
     const loadTemplates = async (signal?: AbortSignal) => {
         setState((current) => ({ ...current, status: "loading", error: null }));
         try {
             const templates = await adminApi.getTemplates({ signal });
+            if (signal?.aborted) return;
             setState({ items: templates, status: "ready", error: null });
         } catch (error) {
             if (signal?.aborted) return;
@@ -43,8 +53,17 @@ export function TemplatesPage() {
         }
     };
 
-    useEffect(() => {
+    const reload = () => {
+        abortRef.current?.abort();
         const controller = new AbortController();
+        abortRef.current = controller;
+        void loadTemplates(controller.signal);
+    };
+
+    useEffect(() => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         void loadTemplates(controller.signal);
         return () => controller.abort();
     }, []);
@@ -53,14 +72,17 @@ export function TemplatesPage() {
         setIsCreateEditorOpen(true);
     };
 
-    const handleDelete = async (template: TemplateInfo) => {
-        if (!confirm(`Вы уверены, что хотите удалить шаблон "${template.name}"?`)) return;
-
+    const handleDeleteConfirm = async () => {
+        if (!deleteDialog) return;
+        const { template } = deleteDialog;
+        setDeleteDialog({ template, isSubmitting: true, error: null });
         try {
             await adminApi.deleteTemplate(template.id);
-            void loadTemplates();
+            setDeleteDialog(null);
+            setToast({ message: `Шаблон «${template.name}» удалён`, tone: "success" });
+            reload();
         } catch (error) {
-            alert(resolveError(error));
+            setDeleteDialog({ template, isSubmitting: false, error: resolveError(error) });
         }
     };
 
@@ -68,7 +90,10 @@ export function TemplatesPage() {
         const previewWindow = openTemplatePreview(template);
 
         if (!previewWindow) {
-            alert("Не удалось открыть окно предпросмотра. Проверьте настройки блокировки всплывающих окон.");
+            setToast({
+                message: "Окно предпросмотра заблокировано браузером. Разрешите всплывающие окна для этого сайта.",
+                tone: "error",
+            });
         }
     };
 
@@ -84,7 +109,7 @@ export function TemplatesPage() {
                     <button
                         className="admin-button admin-button_secondary"
                         disabled={state.status === "loading"}
-                        onClick={() => void loadTemplates()}
+                        onClick={reload}
                         type="button"
                     >
                         <RefreshCw aria-hidden="true" />
@@ -147,8 +172,8 @@ export function TemplatesPage() {
                                 >
                                     <Edit2 size={18} />
                                 </button>
-                                <button 
-                                    onClick={() => handleDelete(template)}
+                                <button
+                                    onClick={() => setDeleteDialog({ template, isSubmitting: false, error: null })}
                                     title="Удалить"
                                     className="admin-icon-button admin-icon-button_danger"
                                 >
@@ -165,12 +190,12 @@ export function TemplatesPage() {
             </div>
 
             {assigningTemplate && (
-                <AssignTemplateModal 
+                <AssignTemplateModal
                     template={assigningTemplate}
                     onClose={() => setAssigningTemplate(null)}
                     onSuccess={() => {
                         setAssigningTemplate(null);
-                        alert("Шаблон успешно назначен");
+                        setToast({ message: "Шаблон назначен", tone: "success" });
                     }}
                 />
             )}
@@ -182,7 +207,8 @@ export function TemplatesPage() {
                     onClose={() => setIsCreateEditorOpen(false)}
                     onSaved={() => {
                         setIsCreateEditorOpen(false);
-                        void loadTemplates();
+                        setToast({ message: "Шаблон создан", tone: "success" });
+                        reload();
                     }}
                 />
             )}
@@ -193,8 +219,30 @@ export function TemplatesPage() {
                     onClose={() => setEditingTemplate(null)}
                     onSaved={() => {
                         setEditingTemplate(null);
-                        void loadTemplates();
+                        setToast({ message: "Шаблон сохранён", tone: "success" });
+                        reload();
                     }}
+                />
+            )}
+
+            {deleteDialog && (
+                <ConfirmModal
+                    confirmLabel="Удалить"
+                    danger
+                    description={`Шаблон «${deleteDialog.template.name}» будет удалён. Назначения экранов на него тоже исчезнут.`}
+                    error={deleteDialog.error}
+                    isSubmitting={deleteDialog.isSubmitting}
+                    onClose={() => { if (!deleteDialog.isSubmitting) setDeleteDialog(null); }}
+                    onConfirm={() => void handleDeleteConfirm()}
+                    title="Удалить шаблон?"
+                />
+            )}
+
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    onDismiss={() => setToast(null)}
+                    tone={toast.tone}
                 />
             )}
         </section>

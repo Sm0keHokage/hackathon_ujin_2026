@@ -1,8 +1,11 @@
 import { adminApiConfig } from "../config";
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
 interface RequestJsonOptions extends Omit<RequestInit, "body"> {
     admin?: boolean;
     body?: unknown;
+    timeoutMs?: number;
 }
 
 type ResponsePayload = unknown;
@@ -27,23 +30,50 @@ export async function requestJson<T = void>(
     path: string,
     options: RequestJsonOptions = {},
 ): Promise<T> {
-    const response = await fetch(resolveApiUrl(path), {
-        ...options,
-        headers: buildHeaders(options),
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
-    });
+    const { signal: externalSignal, timeoutMs, ...rest } = options;
+    const timeout = timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const timeoutController = new AbortController();
+    const timeoutId = window.setTimeout(() => timeoutController.abort(new DOMException("timeout", "TimeoutError")), timeout);
+    const signal = mergeSignals(externalSignal, timeoutController.signal);
 
-    const payload = await readResponsePayload(response);
+    try {
+        const response = await fetch(resolveApiUrl(path), {
+            ...rest,
+            signal,
+            headers: buildHeaders(options),
+            body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        });
 
-    if (!response.ok) {
-        throw new ApiError(
-            response.status,
-            resolveErrorMessage(response.status, payload),
-            payload,
-        );
+        const payload = await readResponsePayload(response);
+
+        if (!response.ok) {
+            throw new ApiError(
+                response.status,
+                resolveErrorMessage(response.status, payload),
+                payload,
+            );
+        }
+
+        return payload as T;
+    } catch (error) {
+        if (timeoutController.signal.aborted && !externalSignal?.aborted) {
+            throw new ApiError(0, `Превышено время ожидания (${Math.round(timeout / 1000)} с)`, undefined);
+        }
+        throw error;
+    } finally {
+        window.clearTimeout(timeoutId);
     }
+}
 
-    return payload as T;
+function mergeSignals(external: AbortSignal | null | undefined, internal: AbortSignal): AbortSignal {
+    if (!external) return internal;
+    if (external.aborted) return external;
+    const controller = new AbortController();
+    const abortFromExternal = () => controller.abort(external.reason);
+    const abortFromInternal = () => controller.abort(internal.reason);
+    external.addEventListener("abort", abortFromExternal, { once: true });
+    internal.addEventListener("abort", abortFromInternal, { once: true });
+    return controller.signal;
 }
 
 function resolveApiUrl(path: string) {
